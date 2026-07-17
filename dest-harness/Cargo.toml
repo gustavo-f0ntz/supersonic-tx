@@ -9,6 +9,10 @@ license = "MIT"
 name = "dest-advantage"
 path = "src/bin/dest_advantage.rs"
 
+[[bin]]
+name = "funding-residual"
+path = "src/bin/funding_residual.rs"
+
 [dependencies]
 supersonic-sdk = { path = "../supersonic-sdk" }
 anyhow = { workspace = true }
