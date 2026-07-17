@@ -39,20 +39,21 @@ e2e                      SDK-planned bundle settles on the real program in LiteS
 ## Quickstart
 
 ```bash
-# everything, one command
-cargo test --workspace                      # 37 tests
+# 1. build the program artifact the e2e tests load by path (needs the Solana toolchain)
+cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
+
+# 2. everything, one command — 48 tests across all five crates
+cargo test --workspace
+#   (step 1 is required first: the 8 e2e tests load the .so and fail loudly,
+#    with a "run cargo build-sbf" message, if it isn't built)
 
 # reproduce the headline measurement (real mainnet data, in-repo)
 cd dest-harness
 cargo run -p supersonic-dest-harness --bin dest-advantage -- \
     --study data/dest_study.jsonl --n 8000 --seed 1
 
-# on-chain proof: build the program, drive a bundle through it
-cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
-cargo test -p supersonic-e2e
-
 # the CLI, offline
-cargo run -p supersonic -- --help
+cargo run -p supersonic-cli -- --help
 ```
 
 ## What it does not claim

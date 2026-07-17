@@ -106,12 +106,17 @@ Program ID: `D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be`
 ## 5. The whole thing, one command
 
 ```
+$ cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml   # e2e loads this .so
 $ cargo test --workspace
-    ... 37 passed; 0 failed
+    ... 48 passed; 0 failed
 ```
 
 Five crates: `programs/supersonic-tx` (router), `supersonic-sdk` (amount + destination
-layers), `supersonic` (CLI), `dest-harness` (measurement), `e2e` (on-chain proof).
+layers), `supersonic-cli` (CLI), `dest-harness` (measurement), `e2e` (on-chain proof).
+The 48 cover the amount layer's exchangeability, the destination pool's fail-closed
+selection, **every program invariant** (`e2e/tests/program_invariants.rs` — each
+`SupersonicError` and later-leg-revert atomicity), the SDK→program seam, and the CLI's
+input parsing.
 
 ## 6. What this does NOT prove — read `CHANNELS.md`
 
