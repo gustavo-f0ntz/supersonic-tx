@@ -113,8 +113,8 @@ $ cargo test --workspace
 Five crates: `programs/supersonic-tx` (router), `supersonic-sdk` (amount + destination
 layers), `supersonic` (CLI), `dest-harness` (measurement), `e2e` (on-chain proof).
 
-## 6. What this does NOT prove — read `THREAT_MODEL.md`
+## 6. What this does NOT prove — read `CHANNELS.md`
 
 The defended residual is the ceiling of a **fully-warmed** pool. It does not close the
 **funding graph**: self-funded decoys re-link to the signer one hop out (§4 of
-`DESIGN.md`). That residual is stated open, not measured away. See `THREAT_MODEL.md`.
+`DESIGN.md`). That residual is stated open, not measured away. See `CHANNELS.md`.

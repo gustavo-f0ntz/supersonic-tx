@@ -1,4 +1,4 @@
-# THREAT_MODEL — supersonic-tx
+# CHANNELS — supersonic-tx threat model, channel by channel
 
 > What this system defends, against whom, and — stated as plainly as the wins — where it
 > stops. Measurements are in `PROOF.md`; design rationale in `DESIGN.md`. This document

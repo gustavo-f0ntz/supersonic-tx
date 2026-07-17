@@ -23,7 +23,7 @@ funding graph). It is the 2017→2018 Monero decoy-selection lesson, ported to S
 
 1. **[DESIGN.md](DESIGN.md)** — the thesis, the measurement, the defense, and where it stops.
 2. **[PROOF.md](PROOF.md)** — reproducible evidence: every number, one command each.
-3. **[THREAT_MODEL.md](THREAT_MODEL.md)** — channel-by-channel status, closed and open, and the crowd interface the open residual needs.
+3. **[CHANNELS.md](CHANNELS.md)** — channel-by-channel status, closed and open, and the crowd interface the open residual needs.
 
 ## Layout
 
@@ -62,7 +62,7 @@ the same order as PR #1's amount-channel floor). It does **not** close funding
 provenance: self-funded decoys re-link to the signer one hop out through the funding
 graph, and breaking that link is mixing — which the non-custodial posture forbids by
 design. That residual is stated open and specified as an interface a crowd of external
-participants must implement. See [THREAT_MODEL.md §5](THREAT_MODEL.md).
+participants must implement. See [CHANNELS.md §5](CHANNELS.md).
 
 Program ID: `D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be`
 

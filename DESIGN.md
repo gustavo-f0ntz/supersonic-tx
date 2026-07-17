@@ -208,7 +208,7 @@ will not repeat it.
 2. The empirical mainnet payee-profile dataset (`dest-harness/data/dest_study.jsonl`) —
    a public artifact the ecosystem does not have.
 3. Standalone program + SDK (amount layer credited, destination layer new) + CLI.
-4. `PROOF.md` with the harness table open→closed, `THREAT_MODEL.md` with the destination
+4. `PROOF.md` with the harness table open→closed, `CHANNELS.md` with the destination
    channel measured and the funding-graph residual + crowd interface stated as open.
 
 ## 6. Four-day plan
@@ -218,7 +218,7 @@ will not repeat it.
 | 1 | Study n≥1000 + `dest-harness` measuring the open channel. | **Passed:** 63.4% ≫ 0.30 kill threshold; advantage +0.60 at K=16. |
 | 2 | Profile model + warming pool + matched selection; measure it closing the channel. | **Passed:** pool decoys drive the best attack from +0.598 to **+0.014** at K=16 (open→closed table below), train/test split, on the real n=1181 study. Residual matches PR #1's amount-channel floor (+0.012). |
 | 3 | Standalone program + SDK (amount layer credited) + CLI; litesvm tests. | End-to-end bundle with a matched pool on localnet/devnet. |
-| 4 | `PROOF.md`, `THREAT_MODEL.md`, PR with honest limits (cold start, funding graph). | Open→closed table published, tx-level evidence. |
+| 4 | `PROOF.md`, `CHANNELS.md`, PR with honest limits (cold start, funding graph). | Open→closed table published, tx-level evidence. |
 
 ### Day-2 result — the channel, open and closed (measured, n=1181)
 
