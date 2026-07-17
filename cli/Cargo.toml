@@ -1,0 +1,18 @@
+[package]
+name = "supersonic-cli"
+version = "0.1.0"
+description = "supersonic — plan/warm/recover/inspect channel-complete intent-ambiguous bundles."
+edition = "2021"
+license = "MIT"
+
+[[bin]]
+name = "supersonic"
+path = "src/main.rs"
+
+[dependencies]
+supersonic-sdk = { path = "../supersonic-sdk" }
+solana-sdk = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
