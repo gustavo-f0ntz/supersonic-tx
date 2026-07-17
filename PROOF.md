@@ -64,6 +64,29 @@ The `defended` column draws decoys from a `WarmingPool` whose profile distributi
 fit on the **train** split; the real legs come from the **held-out test** split, so the
 closure is generalization, not decoys sampled from the same rows as the reals.
 
+### 2.1 It also holds against a *learned* adversary, not just the best single bit
+
+The table above picks the best single classifier. The obvious next question — "does a
+combined attack over all features do better?" — is measured too: a conditional-logit
+adversary (`dest-harness/src/learned.rs`) fits weights over `(exists, prior_sigs, age,
+recency)` jointly on the train split and predicts on test.
+
+| K | learned, open | learned, defended | (best single, defended) |
+|---|---|---|---|
+| 2  | +0.317 | **+0.025** | −0.001 |
+| 4  | +0.476 | **+0.021** | −0.002 |
+| 8  | +0.550 | **+0.018** | +0.011 |
+| 16 | +0.598 | **+0.010** | +0.014 |
+
+Two honest readings. (1) On the **open** channel the union attack recovers exactly the
+single-bit leak — with decoys at zero history there is nothing to combine. (2) On the
+**defended** pool it extracts a slightly *larger* residual than any single classifier at
+low K (+0.025 vs −0.001 at K=2) — the small distributional slack the pool's
+`FRESH_SHARE_TOL` permits is the most a combined attacker can turn into signal. That
+residual is real, stated, and still ~13–50× below the open leak and on the same order as
+PR #1's amount-channel floor (+0.012). The defense is not beating one hand-picked
+classifier; it holds against the union.
+
 ## 3. The defense fails closed — it is not a silent degradation
 
 `supersonic-sdk::plan_bundle` refuses to emit a leaking bundle. Two refusal paths,

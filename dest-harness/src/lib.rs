@@ -23,6 +23,7 @@
 
 pub mod classifiers;
 pub mod eval;
+pub mod learned;
 pub mod pool;
 pub mod profile;
 

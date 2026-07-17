@@ -17,6 +17,7 @@ use serde::Serialize;
 use supersonic_dest_harness::{
     classifiers::DestClassifier,
     eval::{best_attack, score, wilson_ci},
+    learned::LearnedAdversary,
     load_study, pool::ProfileModel, sample_bundles, sample_bundles_defended, split,
 };
 
@@ -53,6 +54,11 @@ struct KRow {
     /// fresh keys — the channel closed. Near 0 means the defense holds.
     defended_advantage: f64,
     defended_best_attack: String,
+    /// Learned **union** adversary (all features jointly, fit on train) — the robustness
+    /// check: open confirms it cracks fresh decoys, defended shows the closure holds
+    /// against more than the best single classifier.
+    learned_open_advantage: f64,
+    learned_defended_advantage: f64,
 }
 
 #[derive(Serialize)]
@@ -100,6 +106,11 @@ fn main() -> Result<()> {
         let def_te = sample_bundles_defended(&test, &model, k, args.n, &mut rng);
         let defended = best_attack(&def_tr, &def_te).context("no classifiers")?;
 
+        // Learned union adversary: fit weights over all features on the train split of
+        // each channel, score on its test split.
+        let learned_open = LearnedAdversary::fit(&open_tr).advantage(&open_te);
+        let learned_defended = LearnedAdversary::fit(&def_tr).advantage(&def_te);
+
         rows.push(KRow {
             k,
             baseline: 1.0 / k as f64,
@@ -111,6 +122,8 @@ fn main() -> Result<()> {
             n_test: open_te.len(),
             defended_advantage: defended.test.advantage,
             defended_best_attack: defended.classifier.name().to_string(),
+            learned_open_advantage: learned_open,
+            learned_defended_advantage: learned_defended,
         });
     }
 
@@ -152,6 +165,21 @@ fn main() -> Result<()> {
     println!(
         "\n'defended' = decoys drawn from a warmed pool whose profile distribution reproduces\n\
          the real-payee population (train split); real legs from the held-out test split."
+    );
+
+    println!("\nLearned union adversary (all features jointly, fit on train, scored on test):");
+    println!("  K | open  | defended");
+    println!("----+-------+----------");
+    for r in &report.rows {
+        println!(
+            " {:>2} | {:+.3} | {:+.3}",
+            r.k, r.learned_open_advantage, r.learned_defended_advantage
+        );
+    }
+    println!(
+        "  The union attack cracks the open channel like the single `exists` bit, and the\n\
+         matched pool closes it against the union too — the defense is not beating just one\n\
+         classifier."
     );
 
     println!("\nPer-classifier advantage on test (K = {}):", report.rows.last().map(|r| r.k).unwrap_or(0));
