@@ -1,6 +1,6 @@
 //! `supersonic` — the client CLI for the channel-complete bundle system.
 //!
-//! Four subcommands cover the lifecycle the design needs:
+//! Subcommands cover the lifecycle the design needs:
 //!
 //! * `warm`    — derive the pool's decoy addresses from your seed and record them, so you
 //!               can fund and age them into a matched history profile.
@@ -8,23 +8,31 @@
 //!               warmed pool. **Fails closed** (non-zero exit) if the pool is too cold.
 //! * `inspect` — show exactly what an on-chain observer sees for a planned bundle.
 //! * `recover` — derive the pool addresses to sweep parked decoy funds back to your sinks.
+//! * `send`    — plan and submit to an RPC. **Simulates by default**; `--broadcast` to
+//!               actually move funds. The program must be deployed on the target cluster.
 //!
-//! `send` (submitting the built transaction to an RPC) is deliberately out of this
-//! offline CLI; the SDK's `build_instruction` produces the instruction and the litesvm
-//! integration test executes it end-to-end against the program.
+//! `warm`/`plan`/`inspect`/`recover` are fully offline; only `send` touches the network.
 
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
-use solana_sdk::{pubkey::Pubkey, signer::Signer};
+use solana_client::rpc_client::RpcClient;
+use solana_sdk::{
+    hash::Hash, pubkey::Pubkey, signature::read_keypair_file, signature::Keypair, signer::Signer,
+    transaction::Transaction,
+};
 
 use supersonic_sdk::{
-    derive_pool_keypair, derive_sink_keypair, plan_bundle, DecoyConfig, DestProfile, PoolMember,
-    ProfileModel, WarmingPool,
+    build_instruction, derive_pool_keypair, derive_sink_keypair, plan_bundle, BundlePlan,
+    DecoyConfig, DestProfile, PoolMember, ProfileModel, WarmingPool,
 };
+
+/// The deployed program id (matches `declare_id!` and `PROGRAM_ID.txt`). The program must
+/// be deployed on the cluster `--rpc` points at — localnet/devnet in practice.
+const PROGRAM_ID: &str = "D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be";
 
 #[derive(Parser)]
 #[command(name = "supersonic", version, about = "Channel-complete intent-ambiguous bundles")]
@@ -85,6 +93,35 @@ enum Cmd {
         #[arg(long, default_value = "pool.json")]
         pool: PathBuf,
     },
+    /// Plan a bundle and submit it to an RPC. **Simulates by default** — pass `--broadcast`
+    /// to actually move funds. Same planning inputs as `plan`, so the real destination
+    /// stays in the signing path and is never written to a shared file.
+    Send {
+        #[arg(long)]
+        seed: String,
+        #[arg(long, default_value = "pool.json")]
+        pool: PathBuf,
+        /// Real destination (base58 pubkey).
+        #[arg(long)]
+        to: String,
+        /// Real amount, in lamports.
+        #[arg(long)]
+        amount: u64,
+        #[arg(long)]
+        k: usize,
+        #[arg(long, default_value_t = 1)]
+        bundle_id: u64,
+        /// The funding signer's keypair file (the wallet that pays every leg).
+        #[arg(long)]
+        keypair: PathBuf,
+        /// RPC endpoint. Required — no default, so a mainnet URL is never hit by accident.
+        /// The program must be deployed on this cluster (localnet/devnet in practice).
+        #[arg(long)]
+        rpc: String,
+        /// Actually submit. Without it, the bundle is only simulated and nothing is sent.
+        #[arg(long)]
+        broadcast: bool,
+    },
 }
 
 /// The persisted warmed pool.
@@ -110,7 +147,99 @@ fn main() -> Result<()> {
         }
         Cmd::Inspect { plan } => inspect(&plan),
         Cmd::Recover { seed, pool } => recover(&seed, &pool),
+        Cmd::Send { seed, pool, to, amount, k, bundle_id, keypair, rpc, broadcast } => {
+            send(&seed, &pool, &to, amount, k, bundle_id, &keypair, &rpc, broadcast)
+        }
     }
+}
+
+/// Build the signed bundle transaction from a plan. Pure (no network), so it is unit-
+/// testable and the network path in `send` is a thin wrapper over it.
+fn build_bundle_tx(
+    program_id: Pubkey,
+    signer: &Keypair,
+    plan: &BundlePlan,
+    blockhash: Hash,
+) -> Transaction {
+    let ix = build_instruction(program_id, signer.pubkey(), plan);
+    Transaction::new_signed_with_payer(&[ix], Some(&signer.pubkey()), &[signer], blockhash)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn send(
+    seed: &str,
+    pool_path: &std::path::Path,
+    to: &str,
+    amount: u64,
+    k: usize,
+    bundle_id: u64,
+    keypair_path: &std::path::Path,
+    rpc_url: &str,
+    broadcast: bool,
+) -> Result<()> {
+    let seed = parse_seed(seed)?;
+    let real_dest = Pubkey::from_str(to).with_context(|| format!("bad --to pubkey: {to}"))?;
+    let pool = load_pool(pool_path)?;
+    let program_id = Pubkey::from_str(PROGRAM_ID).expect("valid program id");
+    let signer = read_keypair_file(keypair_path)
+        .map_err(|e| anyhow!("reading keypair {}: {e}", keypair_path.display()))?;
+
+    let plan = match plan_bundle(&seed, bundle_id, real_dest, amount, &pool, k, DecoyConfig::default())
+    {
+        Ok(p) => p,
+        Err(e @ supersonic_sdk::SdkError::PoolTooCold { .. })
+        | Err(e @ supersonic_sdk::SdkError::PoolNotRepresentative { .. }) => {
+            eprintln!("REFUSED: {e}");
+            std::process::exit(1);
+        }
+        Err(e) => bail!(e),
+    };
+
+    // Observer view on stdout; the real index stays on stderr (never leaks in a pipe).
+    println!("bundle {bundle_id}: K={k}, {} lamports moved", plan.total_moved());
+    for (i, leg) in plan.legs.iter().enumerate() {
+        println!("  leg {i}: {:>14} lamports -> {}", leg.amount, leg.dest);
+    }
+    eprintln!("(operator only) real leg is at index {}", plan.real_index);
+
+    let client = RpcClient::new(rpc_url.to_string());
+    let balance = client
+        .get_balance(&signer.pubkey())
+        .with_context(|| format!("querying balance from {rpc_url}"))?;
+    if balance < plan.total_moved() {
+        bail!(
+            "signer {} has {} lamports but the bundle moves {} — fund it or lower K/amount",
+            signer.pubkey(),
+            balance,
+            plan.total_moved()
+        );
+    }
+
+    let blockhash = client
+        .get_latest_blockhash()
+        .with_context(|| format!("fetching blockhash from {rpc_url}"))?;
+    let tx = build_bundle_tx(program_id, &signer, &plan, blockhash);
+
+    if !broadcast {
+        // Dry run: simulate, report, send nothing.
+        let sim = client
+            .simulate_transaction(&tx)
+            .with_context(|| "simulating bundle")?;
+        match sim.value.err {
+            None => println!(
+                "\nSIMULATED OK ({} compute units). Nothing was sent — re-run with --broadcast to submit.",
+                sim.value.units_consumed.unwrap_or(0)
+            ),
+            Some(err) => bail!("simulation failed: {err:?}\nlogs: {:#?}", sim.value.logs),
+        }
+        return Ok(());
+    }
+
+    let sig = client
+        .send_and_confirm_transaction(&tx)
+        .with_context(|| "submitting bundle")?;
+    println!("\nBROADCAST — signature: {sig}");
+    Ok(())
 }
 
 fn warm(seed: &str, count: u32, out: &std::path::Path, mature: bool) -> Result<()> {
@@ -299,6 +428,31 @@ mod tests {
     fn representative_history_members_have_history() {
         let hist = (0u32..100).map(representative_target).find(|p| p.exists).unwrap();
         assert!(hist.prior_sigs > 0, "a history member must carry prior signatures");
+    }
+
+    #[test]
+    fn build_bundle_tx_signs_and_carries_every_leg() {
+        use supersonic_sdk::PlannedLeg;
+        let program_id = Pubkey::from_str(PROGRAM_ID).unwrap();
+        let signer = Keypair::new();
+        let plan = BundlePlan {
+            legs: vec![
+                PlannedLeg { dest: Pubkey::new_unique(), amount: 100, is_real: true, pool_index: None },
+                PlannedLeg { dest: Pubkey::new_unique(), amount: 50, is_real: false, pool_index: Some(0) },
+                PlannedLeg { dest: Pubkey::new_unique(), amount: 70, is_real: false, pool_index: Some(1) },
+            ],
+            real_index: 0,
+            bundle_id: 1,
+        };
+        let tx = build_bundle_tx(program_id, &signer, &plan, Hash::default());
+        // Signature verifies over the message (independent of blockhash validity).
+        assert!(tx.verify().is_ok(), "the bundle tx must be validly signed");
+        // The instruction references signer + system_program + one account per leg.
+        assert_eq!(tx.message.instructions[0].accounts.len(), plan.legs.len() + 2);
+        // Every leg's destination is present as an account key in the message.
+        for leg in &plan.legs {
+            assert!(tx.message.account_keys.contains(&leg.dest), "leg dest {} missing", leg.dest);
+        }
     }
 }
 

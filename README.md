@@ -31,7 +31,8 @@ funding graph). It is the 2017→2018 Monero decoy-selection lesson, ported to S
 programs/supersonic-tx   atomic K-leg transfer router (non-custodial, atomic, recoverable)
 supersonic-sdk           bundle planner: amount layer (exchangeable, credited to PR #1)
                          + destination layer (matched pre-warmed pool)  ← the contribution
-cli  (supersonic)        warm / plan / send / recover / inspect, offline
+cli  (supersonic)        warm / plan / inspect / recover (offline) + send (simulates
+                         by default; --broadcast to submit to an RPC)
 dest-harness             destination-channel adversary + advantage measurement
 e2e                      SDK-planned bundle settles on the real program in LiteSVM
 ```
@@ -52,7 +53,7 @@ cd dest-harness
 cargo run -p supersonic-dest-harness --bin dest-advantage -- \
     --study data/dest_study.jsonl --n 8000 --seed 1
 
-# the CLI, offline
+# the CLI (warm/plan/inspect/recover are offline; send simulates unless --broadcast)
 cargo run -p supersonic-cli -- --help
 ```
 

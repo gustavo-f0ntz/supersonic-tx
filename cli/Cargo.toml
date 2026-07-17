@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 supersonic-sdk = { path = "../supersonic-sdk" }
 solana-sdk = { workspace = true }
+solana-client = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
