@@ -1,0 +1,18 @@
+[package]
+name = "supersonic-e2e"
+version = "0.1.0"
+description = "End-to-end seam tests: SDK-planned bundles executed against the real program in LiteSVM."
+edition = "2021"
+license = "MIT"
+publish = false
+
+# Deliberately does NOT depend on the on-chain program crate (which would pull anchor-lang
+# 0.32 and conflict with litesvm 0.6's solana stack). LiteSVM loads the program from its
+# compiled `.so` by path, under a known program id — so this crate's tree is anchor-free
+# and the solana versions resolve cleanly.
+[dependencies]
+
+[dev-dependencies]
+supersonic-sdk = { path = "../supersonic-sdk" }
+litesvm = "0.6"
+solana-sdk = { workspace = true }
