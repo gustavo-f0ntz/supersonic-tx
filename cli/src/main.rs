@@ -35,7 +35,11 @@ use supersonic_sdk::{
 const PROGRAM_ID: &str = "D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be";
 
 #[derive(Parser)]
-#[command(name = "supersonic", version, about = "Channel-complete intent-ambiguous bundles")]
+#[command(
+    name = "supersonic",
+    version,
+    about = "Channel-complete intent-ambiguous bundles"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -141,15 +145,36 @@ struct ObserverView {
 
 fn main() -> Result<()> {
     match Cli::parse().cmd {
-        Cmd::Warm { seed, count, out, mature } => warm(&seed, count, &out, mature),
-        Cmd::Plan { seed, pool, to, amount, k, bundle_id, out } => {
-            plan(&seed, &pool, &to, amount, k, bundle_id, out.as_deref())
-        }
+        Cmd::Warm {
+            seed,
+            count,
+            out,
+            mature,
+        } => warm(&seed, count, &out, mature),
+        Cmd::Plan {
+            seed,
+            pool,
+            to,
+            amount,
+            k,
+            bundle_id,
+            out,
+        } => plan(&seed, &pool, &to, amount, k, bundle_id, out.as_deref()),
         Cmd::Inspect { plan } => inspect(&plan),
         Cmd::Recover { seed, pool } => recover(&seed, &pool),
-        Cmd::Send { seed, pool, to, amount, k, bundle_id, keypair, rpc, broadcast } => {
-            send(&seed, &pool, &to, amount, k, bundle_id, &keypair, &rpc, broadcast)
-        }
+        Cmd::Send {
+            seed,
+            pool,
+            to,
+            amount,
+            k,
+            bundle_id,
+            keypair,
+            rpc,
+            broadcast,
+        } => send(
+            &seed, &pool, &to, amount, k, bundle_id, &keypair, &rpc, broadcast,
+        ),
     }
 }
 
@@ -184,8 +209,15 @@ fn send(
     let signer = read_keypair_file(keypair_path)
         .map_err(|e| anyhow!("reading keypair {}: {e}", keypair_path.display()))?;
 
-    let plan = match plan_bundle(&seed, bundle_id, real_dest, amount, &pool, k, DecoyConfig::default())
-    {
+    let plan = match plan_bundle(
+        &seed,
+        bundle_id,
+        real_dest,
+        amount,
+        &pool,
+        k,
+        DecoyConfig::default(),
+    ) {
         Ok(p) => p,
         Err(e @ supersonic_sdk::SdkError::PoolTooCold { .. })
         | Err(e @ supersonic_sdk::SdkError::PoolNotRepresentative { .. }) => {
@@ -196,7 +228,10 @@ fn send(
     };
 
     // Observer view on stdout; the real index stays on stderr (never leaks in a pipe).
-    println!("bundle {bundle_id}: K={k}, {} lamports moved", plan.total_moved());
+    println!(
+        "bundle {bundle_id}: K={k}, {} lamports moved",
+        plan.total_moved()
+    );
     for (i, leg) in plan.legs.iter().enumerate() {
         println!("  leg {i}: {:>14} lamports -> {}", leg.amount, leg.dest);
     }
@@ -249,7 +284,11 @@ fn warm(seed: &str, count: u32, out: &std::path::Path, mature: bool) -> Result<(
             let target = representative_target(index);
             // Immature until aged; `--mature` collapses that for a localnet demo.
             let current = if mature { target } else { DestProfile::fresh() };
-            PoolMember { index, target, current }
+            PoolMember {
+                index,
+                target,
+                current,
+            }
         })
         .collect();
 
@@ -306,7 +345,10 @@ fn plan(
     };
 
     // Observer view on stdout (amounts + destinations, in transaction order).
-    println!("bundle {bundle_id}: K={k}, {} lamports moved", plan.total_moved());
+    println!(
+        "bundle {bundle_id}: K={k}, {} lamports moved",
+        plan.total_moved()
+    );
     for (i, leg) in plan.legs.iter().enumerate() {
         println!("  leg {i}: {:>14} lamports -> {}", leg.amount, leg.dest);
     }
@@ -331,7 +373,11 @@ fn inspect(plan_path: &std::path::Path) -> Result<()> {
     let raw = std::fs::read_to_string(plan_path)
         .with_context(|| format!("reading {}", plan_path.display()))?;
     let view: ObserverView = serde_json::from_str(&raw).context("parsing plan file")?;
-    println!("what an observer sees for bundle {} (K={}):", view.bundle_id, view.amounts.len());
+    println!(
+        "what an observer sees for bundle {} (K={}):",
+        view.bundle_id,
+        view.amounts.len()
+    );
     for (i, (a, d)) in view.amounts.iter().zip(&view.destinations).enumerate() {
         println!("  leg {i}: {a:>14} lamports -> {d}");
     }
@@ -359,8 +405,8 @@ fn recover(seed: &str, pool_path: &std::path::Path) -> Result<()> {
 }
 
 fn load_pool(path: &std::path::Path) -> Result<WarmingPool> {
-    let raw =
-        std::fs::read_to_string(path).with_context(|| format!("reading pool {}", path.display()))?;
+    let raw = std::fs::read_to_string(path)
+        .with_context(|| format!("reading pool {}", path.display()))?;
     let file: PoolFile = serde_json::from_str(&raw).context("parsing pool file")?;
     // The model reproduces the members' target distribution — same population the pool is
     // warmed to present.
@@ -400,8 +446,14 @@ mod tests {
 
     #[test]
     fn parse_seed_rejects_bad_length_and_non_hex() {
-        assert!(parse_seed(&"a".repeat(63)).is_err(), "wrong length must fail");
-        assert!(parse_seed(&"a".repeat(65)).is_err(), "wrong length must fail");
+        assert!(
+            parse_seed(&"a".repeat(63)).is_err(),
+            "wrong length must fail"
+        );
+        assert!(
+            parse_seed(&"a".repeat(65)).is_err(),
+            "wrong length must fail"
+        );
         // Right length, but 'z' is not hex — a trust-boundary reject, not a silent 0.
         assert!(parse_seed(&"z".repeat(64)).is_err(), "non-hex must fail");
     }
@@ -416,18 +468,34 @@ mod tests {
         // DESIGN §1.3: ~36.6% of real payees are fresh. The pool must reproduce that split,
         // and it must hold for small pools too — a blocky `index % 100 < 37` would make a
         // 32-member pool all-fresh and the SDK would refuse it (PoolNotRepresentative).
-        let fresh = (0u32..1000).filter(|&i| !representative_target(i).exists).count();
+        let fresh = (0u32..1000)
+            .filter(|&i| !representative_target(i).exists)
+            .count();
         let share = fresh as f64 / 1000.0;
-        assert!((0.30..=0.44).contains(&share), "fresh share {share} off target ~0.37");
+        assert!(
+            (0.30..=0.44).contains(&share),
+            "fresh share {share} off target ~0.37"
+        );
 
-        let small = (0u32..32).filter(|&i| !representative_target(i).exists).count();
-        assert!((6..=18).contains(&small), "small-pool fresh count {small} degenerate");
+        let small = (0u32..32)
+            .filter(|&i| !representative_target(i).exists)
+            .count();
+        assert!(
+            (6..=18).contains(&small),
+            "small-pool fresh count {small} degenerate"
+        );
     }
 
     #[test]
     fn representative_history_members_have_history() {
-        let hist = (0u32..100).map(representative_target).find(|p| p.exists).unwrap();
-        assert!(hist.prior_sigs > 0, "a history member must carry prior signatures");
+        let hist = (0u32..100)
+            .map(representative_target)
+            .find(|p| p.exists)
+            .unwrap();
+        assert!(
+            hist.prior_sigs > 0,
+            "a history member must carry prior signatures"
+        );
     }
 
     #[test]
@@ -437,9 +505,24 @@ mod tests {
         let signer = Keypair::new();
         let plan = BundlePlan {
             legs: vec![
-                PlannedLeg { dest: Pubkey::new_unique(), amount: 100, is_real: true, pool_index: None },
-                PlannedLeg { dest: Pubkey::new_unique(), amount: 50, is_real: false, pool_index: Some(0) },
-                PlannedLeg { dest: Pubkey::new_unique(), amount: 70, is_real: false, pool_index: Some(1) },
+                PlannedLeg {
+                    dest: Pubkey::new_unique(),
+                    amount: 100,
+                    is_real: true,
+                    pool_index: None,
+                },
+                PlannedLeg {
+                    dest: Pubkey::new_unique(),
+                    amount: 50,
+                    is_real: false,
+                    pool_index: Some(0),
+                },
+                PlannedLeg {
+                    dest: Pubkey::new_unique(),
+                    amount: 70,
+                    is_real: false,
+                    pool_index: Some(1),
+                },
             ],
             real_index: 0,
             bundle_id: 1,
@@ -448,10 +531,17 @@ mod tests {
         // Signature verifies over the message (independent of blockhash validity).
         assert!(tx.verify().is_ok(), "the bundle tx must be validly signed");
         // The instruction references signer + system_program + one account per leg.
-        assert_eq!(tx.message.instructions[0].accounts.len(), plan.legs.len() + 2);
+        assert_eq!(
+            tx.message.instructions[0].accounts.len(),
+            plan.legs.len() + 2
+        );
         // Every leg's destination is present as an account key in the message.
         for leg in &plan.legs {
-            assert!(tx.message.account_keys.contains(&leg.dest), "leg dest {} missing", leg.dest);
+            assert!(
+                tx.message.account_keys.contains(&leg.dest),
+                "leg dest {} missing",
+                leg.dest
+            );
         }
     }
 }

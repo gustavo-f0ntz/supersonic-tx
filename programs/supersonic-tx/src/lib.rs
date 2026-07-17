@@ -80,7 +80,10 @@ pub mod supersonic_tx {
         let dests = ctx.remaining_accounts;
 
         // Structural uniformity: exactly one destination per leg, in leg order.
-        require!(dests.len() == legs.len(), SupersonicError::AccountCountMismatch);
+        require!(
+            dests.len() == legs.len(),
+            SupersonicError::AccountCountMismatch
+        );
 
         for (leg, dest) in legs.iter().zip(dests.iter()) {
             // I4: a zero-value leg is a trivially-filterable decoy — reject.
@@ -131,7 +134,9 @@ pub struct ExecuteBundle<'info> {
 
 #[error_code]
 pub enum SupersonicError {
-    #[msg("Bundle must contain at least MIN_LEGS legs (a decoy-free bundle only advertises tool use)")]
+    #[msg(
+        "Bundle must contain at least MIN_LEGS legs (a decoy-free bundle only advertises tool use)"
+    )]
     BundleTooSmall,
     #[msg("Bundle exceeds MAX_LEGS")]
     TooManyLegs,

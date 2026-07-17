@@ -1,4 +1,4 @@
- //! Adversary classifiers over the **destination** channel.
+//! Adversary classifiers over the **destination** channel.
 //!
 //! Deliberately shaped like `harness/src/classifiers.rs` in PR #1 — same enum
 //! surface, same `predict` contract, same lowest-index tie-break — so the two suites
@@ -67,9 +67,7 @@ impl DestClassifier {
             DestClassifier::MostTxs => argmax_by(profiles, |p| p.prior_sigs as f64),
             // Oldest = largest age. A profile with no history has no age; treat it as
             // age 0 so it never wins, which is the honest reading (it is not old).
-            DestClassifier::OldestAge => {
-                argmax_by(profiles, |p| p.age_slots.unwrap_or(0) as f64)
-            }
+            DestClassifier::OldestAge => argmax_by(profiles, |p| p.age_slots.unwrap_or(0) as f64),
             // Most recent = smallest slots-since-last-activity, so negate. No history
             // means never active: rank it last via +inf distance.
             DestClassifier::MostRecentlyActive => argmax_by(profiles, |p| {

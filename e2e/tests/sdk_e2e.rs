@@ -47,12 +47,22 @@ fn boot(airdrop: u64) -> (LiteSVM, Keypair) {
 fn warm_pool(n: u32) -> WarmingPool {
     let hist = DestProfile::observed(900, Some(8_000_000), Some(100));
     let targets: Vec<DestProfile> = (0..n)
-        .map(|i| if i % 3 == 0 { DestProfile::fresh() } else { hist })
+        .map(|i| {
+            if i % 3 == 0 {
+                DestProfile::fresh()
+            } else {
+                hist
+            }
+        })
         .collect();
     let model = ProfileModel::from_profiles(targets.iter().copied());
     let mut pool = WarmingPool::new(model);
     for (i, t) in targets.into_iter().enumerate() {
-        pool.members.push(PoolMember { index: i as u32, target: t, current: t });
+        pool.members.push(PoolMember {
+            index: i as u32,
+            target: t,
+            current: t,
+        });
     }
     pool
 }
@@ -88,7 +98,11 @@ fn sdk_planned_bundle_settles_on_program() {
 
     // Every leg funded exactly, real and decoy alike — the program cannot tell them apart.
     for (dest, amount) in &expected {
-        assert_eq!(svm.get_balance(dest).unwrap_or(0), *amount, "leg {dest} funded");
+        assert_eq!(
+            svm.get_balance(dest).unwrap_or(0),
+            *amount,
+            "leg {dest} funded"
+        );
     }
     assert_eq!(svm.get_balance(&real_dest).unwrap_or(0), real_amount);
     // Decoys are recoverable: each decoy dest equals its pool-member keypair.
@@ -118,8 +132,15 @@ fn underfunded_sdk_bundle_reverts_atomically() {
     let ix = build_instruction(program_id(), user.pubkey(), &plan);
     let bh = svm.latest_blockhash();
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&user.pubkey()), &[&user], bh);
-    assert!(svm.send_transaction(tx).is_err(), "underfunded bundle must fail");
+    assert!(
+        svm.send_transaction(tx).is_err(),
+        "underfunded bundle must fail"
+    );
     for leg in &plan.legs {
-        assert_eq!(svm.get_balance(&leg.dest).unwrap_or(0), 0, "no leg lands on revert");
+        assert_eq!(
+            svm.get_balance(&leg.dest).unwrap_or(0),
+            0,
+            "no leg lands on revert"
+        );
     }
 }

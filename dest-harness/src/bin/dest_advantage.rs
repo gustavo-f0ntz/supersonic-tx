@@ -18,7 +18,9 @@ use supersonic_dest_harness::{
     classifiers::DestClassifier,
     eval::{best_attack, score, wilson_ci},
     learned::LearnedAdversary,
-    load_study, pool::ProfileModel, sample_bundles, sample_bundles_defended, split,
+    load_study,
+    pool::ProfileModel,
+    sample_bundles, sample_bundles_defended, split,
 };
 
 #[derive(Parser, Debug)]
@@ -151,15 +153,25 @@ fn main() -> Result<()> {
         share_ci.0 * 100.0,
         share_ci.1 * 100.0
     );
-    println!("Decoy destinations (derive_decoy_keypair): 0% have prior history, by construction.\n");
+    println!(
+        "Decoy destinations (derive_decoy_keypair): 0% have prior history, by construction.\n"
+    );
 
-    println!("  K | baseline | open: best attack | advantage | 95% CI          || defended | attack");
+    println!(
+        "  K | baseline | open: best attack | advantage | 95% CI          || defended | attack"
+    );
     println!("----+----------+-------------------+-----------+-----------------++----------+-----------------");
     for r in &report.rows {
         println!(
             " {:>2} |    {:.3} | {:>17} |   {:+.3}  | [{:+.3},{:+.3}] || {:+.3}   | {}",
-            r.k, r.baseline, r.best_attack, r.advantage, r.ci95_low, r.ci95_high,
-            r.defended_advantage, r.defended_best_attack
+            r.k,
+            r.baseline,
+            r.best_attack,
+            r.advantage,
+            r.ci95_low,
+            r.ci95_high,
+            r.defended_advantage,
+            r.defended_best_attack
         );
     }
     println!(
@@ -182,7 +194,10 @@ fn main() -> Result<()> {
          classifier."
     );
 
-    println!("\nPer-classifier advantage on test (K = {}):", report.rows.last().map(|r| r.k).unwrap_or(0));
+    println!(
+        "\nPer-classifier advantage on test (K = {}):",
+        report.rows.last().map(|r| r.k).unwrap_or(0)
+    );
     if let Some(&k) = args.k.last() {
         let mut rng = ChaCha20Rng::seed_from_u64(args.seed ^ (k as u64) << 32 ^ 0xBEEF);
         let test = sample_bundles(&study, k, args.n, &mut rng);

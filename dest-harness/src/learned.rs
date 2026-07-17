@@ -145,7 +145,10 @@ impl LearnedAdversary {
             return 0.0;
         }
         let k = test[0].k();
-        let hits = test.iter().filter(|b| self.predict(b) == b.real_index).count();
+        let hits = test
+            .iter()
+            .filter(|b| self.predict(b) == b.real_index)
+            .count();
         hits as f64 / test.len() as f64 - 1.0 / k as f64
     }
 }
@@ -161,7 +164,10 @@ mod tests {
             .map(|real_index| {
                 let mut profiles = vec![DestProfile::fresh(); k];
                 profiles[real_index] = DestProfile::observed(900, Some(9_000_000), Some(120));
-                Bundle { profiles, real_index }
+                Bundle {
+                    profiles,
+                    real_index,
+                }
             })
             .collect()
     }
@@ -174,7 +180,10 @@ mod tests {
         let bundles = pr1_bundles(k);
         let adv = LearnedAdversary::fit(&bundles);
         let a = adv.advantage(&bundles);
-        assert!(a > 0.85, "learned adversary should crack the open channel, got {a:+.3}");
+        assert!(
+            a > 0.85,
+            "learned adversary should crack the open channel, got {a:+.3}"
+        );
     }
 
     #[test]

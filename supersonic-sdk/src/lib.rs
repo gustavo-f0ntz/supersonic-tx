@@ -315,7 +315,10 @@ pub enum SdkError {
     BadDestination,
     /// The warmed pool cannot supply `needed` matched decoys (only `eligible` mature).
     /// The fail-closed path: no bundle is built.
-    PoolTooCold { eligible: usize, needed: usize },
+    PoolTooCold {
+        eligible: usize,
+        needed: usize,
+    },
     /// Enough mature members, but they do not reproduce the modeled fresh/history split,
     /// so a uniform draw would leak (e.g. only fresh members matured). Also fail-closed.
     PoolNotRepresentative {
@@ -387,7 +390,11 @@ mod tests {
         let a = plan_bundle(&SEED, 1, dest, 1_337_000, &pool, 5, DecoyConfig::default()).unwrap();
         let b = plan_bundle(&SEED, 1, dest, 1_337_000, &pool, 5, DecoyConfig::default()).unwrap();
         assert_eq!(a.amounts(), b.amounts(), "same seed+id => same amounts");
-        assert_eq!(a.destinations(), b.destinations(), "same seed+id => same dests");
+        assert_eq!(
+            a.destinations(),
+            b.destinations(),
+            "same seed+id => same dests"
+        );
         assert_eq!(a.real_index, b.real_index);
     }
 
@@ -395,7 +402,8 @@ mod tests {
     fn real_leg_present_exactly_once_with_right_value() {
         let dest = Keypair::new().pubkey();
         let pool = warm_pool(32);
-        let plan = plan_bundle(&SEED, 9, dest, 4_200_000, &pool, 6, DecoyConfig::default()).unwrap();
+        let plan =
+            plan_bundle(&SEED, 9, dest, 4_200_000, &pool, 6, DecoyConfig::default()).unwrap();
         assert_eq!(plan.legs.len(), 6);
         let reals: Vec<_> = plan.legs.iter().filter(|l| l.is_real).collect();
         assert_eq!(reals.len(), 1, "exactly one real leg");
@@ -408,11 +416,16 @@ mod tests {
     fn decoys_come_from_the_pool_and_are_recoverable_from_seed() {
         let dest = Keypair::new().pubkey();
         let pool = warm_pool(32);
-        let plan = plan_bundle(&SEED, 3, dest, 2_000_000, &pool, 5, DecoyConfig::default()).unwrap();
+        let plan =
+            plan_bundle(&SEED, 3, dest, 2_000_000, &pool, 5, DecoyConfig::default()).unwrap();
         for leg in plan.legs.iter().filter(|l| !l.is_real) {
             let idx = leg.pool_index.expect("decoy carries its pool index");
             let kp = derive_pool_keypair(&SEED, idx);
-            assert_eq!(kp.pubkey(), leg.dest, "decoy dest recoverable from seed by pool index");
+            assert_eq!(
+                kp.pubkey(),
+                leg.dest,
+                "decoy dest recoverable from seed by pool index"
+            );
         }
     }
 
@@ -421,9 +434,15 @@ mod tests {
         let dest = Keypair::new().pubkey();
         // Model non-empty (so it could sample), but zero warmed members => cannot match.
         let pool = WarmingPool::new(ProfileModel::from_profiles([real_prof()]));
-        let err = plan_bundle(&SEED, 1, dest, 1_000_000, &pool, 8, DecoyConfig::default())
-            .unwrap_err();
-        assert_eq!(err, SdkError::PoolTooCold { eligible: 0, needed: 7 });
+        let err =
+            plan_bundle(&SEED, 1, dest, 1_000_000, &pool, 8, DecoyConfig::default()).unwrap_err();
+        assert_eq!(
+            err,
+            SdkError::PoolTooCold {
+                eligible: 0,
+                needed: 7
+            }
+        );
     }
 
     #[test]
@@ -445,7 +464,8 @@ mod tests {
         let dest = Keypair::new().pubkey();
         let pool = warm_pool(32);
         let user = Keypair::new().pubkey();
-        let plan = plan_bundle(&SEED, 2, dest, 3_000_000, &pool, 4, DecoyConfig::default()).unwrap();
+        let plan =
+            plan_bundle(&SEED, 2, dest, 3_000_000, &pool, 4, DecoyConfig::default()).unwrap();
         let ix = build_instruction(Pubkey::new_unique(), user, &plan);
         // signer + system_program + K destinations.
         assert_eq!(ix.accounts.len(), 2 + 4);

@@ -85,7 +85,12 @@ fn k1_bundle_rejected() {
     // A single-leg "bundle" carries no decoy — it only advertises tool use. K>=2 enforced.
     let (mut svm, user) = boot(10 * SOL);
     let dests = fresh_dests(1);
-    expect_error(&mut svm, &user, raw_ix(user.pubkey(), &dests, &[SOL]), "BundleTooSmall");
+    expect_error(
+        &mut svm,
+        &user,
+        raw_ix(user.pubkey(), &dests, &[SOL]),
+        "BundleTooSmall",
+    );
 }
 
 #[test]
@@ -94,7 +99,12 @@ fn oversized_bundle_rejected() {
     let (mut svm, user) = boot(100 * SOL);
     let dests = fresh_dests(17);
     let amounts = vec![1_000_000u64; 17];
-    expect_error(&mut svm, &user, raw_ix(user.pubkey(), &dests, &amounts), "TooManyLegs");
+    expect_error(
+        &mut svm,
+        &user,
+        raw_ix(user.pubkey(), &dests, &amounts),
+        "TooManyLegs",
+    );
 }
 
 #[test]
@@ -104,7 +114,12 @@ fn account_count_mismatch_rejected() {
     let (mut svm, user) = boot(10 * SOL);
     let dests = fresh_dests(2);
     let amounts = [1_000_000u64, 2_000_000, 3_000_000];
-    expect_error(&mut svm, &user, raw_ix(user.pubkey(), &dests, &amounts), "AccountCountMismatch");
+    expect_error(
+        &mut svm,
+        &user,
+        raw_ix(user.pubkey(), &dests, &amounts),
+        "AccountCountMismatch",
+    );
 }
 
 #[test]
@@ -113,7 +128,12 @@ fn zero_amount_leg_rejected() {
     let (mut svm, user) = boot(10 * SOL);
     let dests = fresh_dests(2);
     let amounts = [1_000_000u64, 0];
-    expect_error(&mut svm, &user, raw_ix(user.pubkey(), &dests, &amounts), "ZeroAmount");
+    expect_error(
+        &mut svm,
+        &user,
+        raw_ix(user.pubkey(), &dests, &amounts),
+        "ZeroAmount",
+    );
     for d in &dests {
         assert_eq!(svm.get_balance(d).unwrap_or(0), 0, "no leg lands on revert");
     }
@@ -127,8 +147,17 @@ fn self_send_leg_rejected() {
     let good = Keypair::new().pubkey();
     let dests = [good, user.pubkey()];
     let amounts = [1_000_000u64, 1_000_000];
-    expect_error(&mut svm, &user, raw_ix(user.pubkey(), &dests, &amounts), "SelfDestination");
-    assert_eq!(svm.get_balance(&good).unwrap_or(0), 0, "valid sibling leg rolled back too");
+    expect_error(
+        &mut svm,
+        &user,
+        raw_ix(user.pubkey(), &dests, &amounts),
+        "SelfDestination",
+    );
+    assert_eq!(
+        svm.get_balance(&good).unwrap_or(0),
+        0,
+        "valid sibling leg rolled back too"
+    );
 }
 
 #[test]

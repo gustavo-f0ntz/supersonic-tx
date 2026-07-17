@@ -159,8 +159,12 @@ impl WarmingPool {
     pub fn select<R: Rng>(&self, k: usize, rng: &mut R) -> Selection {
         debug_assert!(k >= 2);
         let need = k - 1;
-        let eligible: Vec<PoolMember> =
-            self.members.iter().filter(|m| m.is_eligible()).copied().collect();
+        let eligible: Vec<PoolMember> = self
+            .members
+            .iter()
+            .filter(|m| m.is_eligible())
+            .copied()
+            .collect();
         if eligible.len() < need {
             return Selection::PoolTooCold {
                 eligible: eligible.len(),
@@ -263,7 +267,11 @@ mod tests {
         let mut pool = WarmingPool::new(model3());
         // 16 history + 8 fresh, all matured => eligible fresh_share = 8/24 ≈ 0.33 ≈ model.
         for i in 0..16 {
-            pool.members.push(PoolMember { index: i, target: hist, current: hist });
+            pool.members.push(PoolMember {
+                index: i,
+                target: hist,
+                current: hist,
+            });
         }
         for i in 16..24 {
             pool.members.push(PoolMember {
@@ -305,12 +313,22 @@ mod tests {
         }
         for i in 8..24 {
             // history-target members: still fresh (immature) => not eligible.
-            pool.members.push(PoolMember { index: i, target: hist, current: DestProfile::fresh() });
+            pool.members.push(PoolMember {
+                index: i,
+                target: hist,
+                current: DestProfile::fresh(),
+            });
         }
         let mut rng = ChaCha20Rng::seed_from_u64(3);
         match pool.select(8, &mut rng) {
-            Selection::PoolNotRepresentative { eligible_fresh_share, .. } => {
-                assert!((eligible_fresh_share - 1.0).abs() < 1e-9, "eligible are all fresh");
+            Selection::PoolNotRepresentative {
+                eligible_fresh_share,
+                ..
+            } => {
+                assert!(
+                    (eligible_fresh_share - 1.0).abs() < 1e-9,
+                    "eligible are all fresh"
+                );
             }
             other => panic!("all-fresh eligible set must fail closed, got {other:?}"),
         }

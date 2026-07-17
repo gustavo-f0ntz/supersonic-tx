@@ -1,5 +1,7 @@
 # supersonic-tx
 
+[![ci](https://github.com/gustavo-f0ntz/supersonic-tx/actions/workflows/ci.yml/badge.svg)](https://github.com/gustavo-f0ntz/supersonic-tx/actions/workflows/ci.yml)
+
 **A channel-complete decoy system for Solana transfers.** Hide which of K legs in an
 atomic bundle is the real payment — by matching the real leg in *every* observable
 channel, not just the amount.

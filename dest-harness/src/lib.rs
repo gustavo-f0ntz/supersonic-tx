@@ -67,8 +67,8 @@ pub fn load_study(jsonl: &str) -> anyhow::Result<Vec<StudyRow>> {
         if line.trim().is_empty() {
             continue;
         }
-        let row: StudyRow = serde_json::from_str(line)
-            .map_err(|e| anyhow::anyhow!("study line {}: {e}", i + 1))?;
+        let row: StudyRow =
+            serde_json::from_str(line).map_err(|e| anyhow::anyhow!("study line {}: {e}", i + 1))?;
         out.push(row);
     }
     Ok(out)
@@ -86,7 +86,10 @@ pub fn sample_bundle<R: Rng>(study: &[StudyRow], k: usize, rng: &mut R) -> Bundl
     let mut profiles = vec![DestProfile::fresh(); k];
     let real_index = rng.gen_range(0..k);
     profiles[real_index] = real.to_profile();
-    Bundle { profiles, real_index }
+    Bundle {
+        profiles,
+        real_index,
+    }
 }
 
 /// Sample `n` bundles at anonymity-set size `k`.
@@ -116,11 +119,17 @@ pub fn sample_bundle_defended<R: Rng>(
     rng: &mut R,
 ) -> Bundle {
     debug_assert!(k >= 2);
-    let real = reals.choose(rng).expect("reals must be non-empty").to_profile();
+    let real = reals
+        .choose(rng)
+        .expect("reals must be non-empty")
+        .to_profile();
     let mut profiles: Vec<DestProfile> = (0..k - 1).map(|_| model.sample(rng)).collect();
     let real_index = rng.gen_range(0..k);
     profiles.insert(real_index, real);
-    Bundle { profiles, real_index }
+    Bundle {
+        profiles,
+        real_index,
+    }
 }
 
 /// Sample `n` defended bundles at anonymity-set size `k`.
@@ -131,7 +140,9 @@ pub fn sample_bundles_defended<R: Rng>(
     n: usize,
     rng: &mut R,
 ) -> Vec<Bundle> {
-    (0..n).map(|_| sample_bundle_defended(reals, model, k, rng)).collect()
+    (0..n)
+        .map(|_| sample_bundle_defended(reals, model, k, rng))
+        .collect()
 }
 
 #[cfg(test)]
@@ -172,7 +183,10 @@ mod tests {
         assert_eq!(b.k(), 8);
         let fresh = b.profiles.iter().filter(|p| !p.exists).count();
         // 7 decoys are always fresh; the real leg is fresh only in the 8% case.
-        assert!(fresh >= 7, "decoys must all be fresh, got {fresh} fresh of 8");
+        assert!(
+            fresh >= 7,
+            "decoys must all be fresh, got {fresh} fresh of 8"
+        );
     }
 
     #[test]
@@ -188,7 +202,11 @@ mod tests {
             "expected ~2/3 (the share with history), got {:.3}",
             s.accuracy
         );
-        assert!(s.advantage > 0.5, "advantage {:.3} should dwarf +0.013", s.advantage);
+        assert!(
+            s.advantage > 0.5,
+            "advantage {:.3} should dwarf +0.013",
+            s.advantage
+        );
     }
 
     /// The day-2 gate, as an executable assertion: a warmed pool whose distribution
@@ -204,12 +222,16 @@ mod tests {
         let mut rows = Vec::new();
         for i in 0..600u64 {
             let line = if i % 100 < 37 {
-                format!(r#"{{"dest":"d{i}","lamports":1,"slot":10000,"prior_sigs":0,"had_history":false}}"#)
+                format!(
+                    r#"{{"dest":"d{i}","lamports":1,"slot":10000,"prior_sigs":0,"had_history":false}}"#
+                )
             } else {
                 let sigs = 50 + (i % 900);
                 let age = 100_000 + i * 1000;
                 let rec = 10 + (i % 500);
-                format!(r#"{{"dest":"d{i}","lamports":1,"slot":10000,"prior_sigs":{sigs},"had_history":true,"age_slots":{age},"recency_slots":{rec}}}"#)
+                format!(
+                    r#"{{"dest":"d{i}","lamports":1,"slot":10000,"prior_sigs":{sigs},"had_history":true,"age_slots":{age},"recency_slots":{rec}}}"#
+                )
             };
             rows.push(line);
         }

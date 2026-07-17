@@ -22,10 +22,17 @@ pub struct Score {
 /// `1/K` baseline. All bundles must share the same `K`.
 pub fn score(c: DestClassifier, bundles: &[Bundle]) -> Score {
     if bundles.is_empty() {
-        return Score { accuracy: 0.0, advantage: 0.0, n: 0 };
+        return Score {
+            accuracy: 0.0,
+            advantage: 0.0,
+            n: 0,
+        };
     }
     let k = bundles[0].k();
-    debug_assert!(bundles.iter().all(|b| b.k() == k), "mixed K in one score set");
+    debug_assert!(
+        bundles.iter().all(|b| b.k() == k),
+        "mixed K in one score set"
+    );
     let hits = bundles
         .iter()
         .filter(|b| c.predict(&b.profiles) == b.real_index)
@@ -89,7 +96,10 @@ mod tests {
         // PR #1's construction: K-1 fresh decoys + one established real payee.
         let mut profiles = vec![DestProfile::fresh(); k];
         profiles[real_index] = DestProfile::observed(974, Some(9_000_000), Some(120));
-        Bundle { profiles, real_index }
+        Bundle {
+            profiles,
+            real_index,
+        }
     }
 
     #[test]
@@ -115,13 +125,20 @@ mod tests {
             })
             .collect();
         let s = score(DestClassifier::Exists, &bundles);
-        assert!((s.advantage).abs() < 1e-9, "matched pool should not leak, got {}", s.advantage);
+        assert!(
+            (s.advantage).abs() < 1e-9,
+            "matched pool should not leak, got {}",
+            s.advantage
+        );
     }
 
     #[test]
     fn wilson_brackets_the_point_estimate() {
         let (lo, hi) = wilson_ci(23, 25, 1.96);
-        assert!(lo < 0.92 && 0.92 < hi, "CI [{lo:.3}, {hi:.3}] must bracket 23/25");
+        assert!(
+            lo < 0.92 && 0.92 < hi,
+            "CI [{lo:.3}, {hi:.3}] must bracket 23/25"
+        );
         assert!(lo > 0.7, "n=25 at 92% should not admit anything below ~0.7");
     }
 
@@ -129,6 +146,9 @@ mod tests {
     fn wilson_narrows_as_n_grows() {
         let (lo_small, hi_small) = wilson_ci(23, 25, 1.96);
         let (lo_big, hi_big) = wilson_ci(920, 1000, 1.96);
-        assert!(hi_big - lo_big < hi_small - lo_small, "n=1000 must be tighter than n=25");
+        assert!(
+            hi_big - lo_big < hi_small - lo_small,
+            "n=1000 must be tighter than n=25"
+        );
     }
 }
