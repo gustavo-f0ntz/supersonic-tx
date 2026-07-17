@@ -68,7 +68,8 @@ graph, and breaking that link is mixing — which the non-custodial posture forb
 design. That residual is stated open and specified as an interface a crowd of external
 participants must implement. See [CHANNELS.md §5](CHANNELS.md).
 
-Program ID: `D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be`
+**Deployed on devnet** — [program `D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be`](https://explorer.solana.com/address/D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be?cluster=devnet),
+with a real CLI-planned bundle settled on chain ([tx](https://explorer.solana.com/tx/5zd9D1V51Grjjm9tB38jimgdAHwAb3n5s4gqgwYUQgx5FMoygJpKKkEhVciZCNGS56NVxZJKNDsq65ADw8GtojjR?cluster=devnet), status Ok). See [PROOF.md §4.1](PROOF.md).
 
 ## Credit
 

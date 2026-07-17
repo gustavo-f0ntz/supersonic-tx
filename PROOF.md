@@ -126,6 +126,31 @@ $ cargo test -p supersonic-e2e
 Program ID: `D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be`
 (`programs/supersonic-tx/PROGRAM_ID.txt`, matches `declare_id!`).
 
+## 4.1 It also settles on live devnet — a real bundle, on chain
+
+Not just LiteSVM: the program is **deployed to devnet** under the same id, and the CLI
+planned and broadcast a real K=4 bundle through it end-to-end.
+
+- **Program (devnet):** [`D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be`](https://explorer.solana.com/address/D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be?cluster=devnet)
+- **Live bundle tx (status Ok):** [`5zd9D1V51Grjjm9tB38jimgdAHwAb3n5s4gqgwYUQgx5FMoygJpKKkEhVciZCNGS56NVxZJKNDsq65ADw8GtojjR`](https://explorer.solana.com/tx/5zd9D1V51Grjjm9tB38jimgdAHwAb3n5s4gqgwYUQgx5FMoygJpKKkEhVciZCNGS56NVxZJKNDsq65ADw8GtojjR?cluster=devnet)
+
+```
+$ supersonic send --seed <32B> --pool pool.json --to 7mkdvPffx1GjMmj2oo3i8sYXADi1yA9J3AfgurBYqVWo \
+      --amount 1000000 --k 4 --keypair id.json --rpc https://api.devnet.solana.com --broadcast
+  bundle 1: K=4, 5000000 lamports moved
+    leg 0: 1000000 -> 5HaKGqna…   (decoy)
+    leg 1: 1000000 -> 7zqTQeT2…   (decoy)
+    leg 2: 2000000 -> B9f2aG3P…   (decoy)
+    leg 3: 1000000 -> 7mkdvPff…   (real)
+  (operator only) real leg is at index 3        # to stderr, never in the observer view
+  BROADCAST — signature: 5zd9D1V5…
+```
+
+Both the real leg (`7mkdv…`) and a decoy (`5HaK…`) show `0.001 SOL` on devnet afterward —
+every leg settled, real and decoy alike, in one atomic tx. The live deployment also
+enforces the invariants: a `send` with the real destination set to the signer was rejected
+on chain with `SelfDestination` (Error 6004) before anything moved.
+
 ## 5. The whole thing, one command
 
 ```
