@@ -1,0 +1,13 @@
+# Rust build artifacts
+/target
+
+# Keypairs — private keys never go in git. The program keypair stays on disk
+# (deploy must reuse it so the deployed id matches declare_id!), just not tracked.
+*-keypair.json
+*keypair*.json
+/**/id.json
+
+# Local env / editor
+.env
+.env.*
+.DS_Store

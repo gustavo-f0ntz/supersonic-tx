@@ -1,0 +1,22 @@
+[toolchain]
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+supersonic_tx = "D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be"
+
+[programs.devnet]
+supersonic_tx = "D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+# Invariant tests run against the compiled program via litesvm, not a validator.
+test = "cargo test -p supersonic-tx --test invariants"
