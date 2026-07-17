@@ -150,14 +150,13 @@ impl WarmingPool {
         self.members.iter().filter(|m| m.is_eligible()).count()
     }
 
-    /// Select `k - 1` decoy members for a bundle whose real leg has profile `real`.
+    /// Select `k - 1` eligible decoy members for a bundle.
     ///
-    /// The selection does **not** look at `real` to pick "near" members — that would
-    /// recreate the centrality leak. It draws eligible members uniformly, so the K legs
-    /// (real + decoys) are i.i.d. draws from the same reproduced distribution and the
-    /// real's rank is uniform in every dimension. `real` is taken only for the caller's
-    /// debug assertion that the populations match, never to bias the draw.
-    pub fn select<R: Rng>(&self, _real: &DestProfile, k: usize, rng: &mut R) -> Selection {
+    /// The selection is **global**: it does not look at the real leg to pick "near"
+    /// members — that would recreate the centrality leak. It draws eligible members
+    /// uniformly, so the K legs (real + decoys) are i.i.d. draws from the same reproduced
+    /// distribution and the real's rank is uniform in every dimension.
+    pub fn select<R: Rng>(&self, k: usize, rng: &mut R) -> Selection {
         debug_assert!(k >= 2);
         let need = k - 1;
         let eligible: Vec<PoolMember> =
@@ -249,7 +248,7 @@ mod tests {
     fn select_fails_closed_when_pool_is_cold() {
         let pool = WarmingPool::new(model3()); // no members warmed yet
         let mut rng = ChaCha20Rng::seed_from_u64(1);
-        match pool.select(&DestProfile::fresh(), 8, &mut rng) {
+        match pool.select(8, &mut rng) {
             Selection::PoolTooCold {
                 eligible: 0,
                 needed: 7,
@@ -280,7 +279,7 @@ mod tests {
     fn select_matches_when_pool_reproduces_the_distribution() {
         let pool = representative_matured_pool();
         let mut rng = ChaCha20Rng::seed_from_u64(2);
-        match pool.select(&DestProfile::observed(700, Some(6_000_000), Some(80)), 8, &mut rng) {
+        match pool.select(8, &mut rng) {
             Selection::Matched(d) => {
                 assert_eq!(d.len(), 7);
                 assert!(d.iter().all(|m| m.is_eligible()));
@@ -309,7 +308,7 @@ mod tests {
             pool.members.push(PoolMember { index: i, target: hist, current: DestProfile::fresh() });
         }
         let mut rng = ChaCha20Rng::seed_from_u64(3);
-        match pool.select(&DestProfile::observed(700, Some(6_000_000), Some(80)), 8, &mut rng) {
+        match pool.select(8, &mut rng) {
             Selection::PoolNotRepresentative { eligible_fresh_share, .. } => {
                 assert!((eligible_fresh_share - 1.0).abs() < 1e-9, "eligible are all fresh");
             }

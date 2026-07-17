@@ -69,9 +69,6 @@ enum Cmd {
         /// Per-bundle nonce.
         #[arg(long, default_value_t = 1)]
         bundle_id: u64,
-        /// The real destination has no prior history (the ~37% fresh-payee case).
-        #[arg(long)]
-        real_fresh: bool,
         /// Optionally write the observer-view plan for `inspect`.
         #[arg(long)]
         out: Option<PathBuf>,
@@ -108,8 +105,8 @@ struct ObserverView {
 fn main() -> Result<()> {
     match Cli::parse().cmd {
         Cmd::Warm { seed, count, out, mature } => warm(&seed, count, &out, mature),
-        Cmd::Plan { seed, pool, to, amount, k, bundle_id, real_fresh, out } => {
-            plan(&seed, &pool, &to, amount, k, bundle_id, real_fresh, out.as_deref())
+        Cmd::Plan { seed, pool, to, amount, k, bundle_id, out } => {
+            plan(&seed, &pool, &to, amount, k, bundle_id, out.as_deref())
         }
         Cmd::Inspect { plan } => inspect(&plan),
         Cmd::Recover { seed, pool } => recover(&seed, &pool),
@@ -143,7 +140,6 @@ fn warm(seed: &str, count: u32, out: &std::path::Path, mature: bool) -> Result<(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 fn plan(
     seed: &str,
     pool_path: &std::path::Path,
@@ -151,27 +147,19 @@ fn plan(
     amount: u64,
     k: usize,
     bundle_id: u64,
-    real_fresh: bool,
     out: Option<&std::path::Path>,
 ) -> Result<()> {
     let seed = parse_seed(seed)?;
     let real_dest = Pubkey::from_str(to).with_context(|| format!("bad --to pubkey: {to}"))?;
     let pool = load_pool(pool_path)?;
 
-    // The real destination's profile: an observer reads it with one RPC call. `--real-fresh`
-    // is the ~37% case (a genuinely new payee), which a matched pool covers too.
-    let real_profile = if real_fresh {
-        DestProfile::fresh()
-    } else {
-        representative_target(u32::MAX) // a "has history" real payee
-    };
-
+    // Selection is global (§pool): the decoys reproduce the real-payee distribution, so
+    // the real leg is one more i.i.d. draw — no per-real profile is needed to plan.
     let plan = plan_bundle(
         &seed,
         bundle_id,
         real_dest,
         amount,
-        real_profile,
         &pool,
         k,
         DecoyConfig::default(),
@@ -268,6 +256,50 @@ fn representative_target(index: u32) -> DestProfile {
     let age = 100_000 + (index as u64) * 1_000;
     let recency = 10 + (index as u64 % 500);
     DestProfile::observed(sigs, Some(age), Some(recency))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_seed_accepts_64_hex_with_or_without_prefix() {
+        let bare = "aa".repeat(32);
+        assert_eq!(parse_seed(&bare).unwrap(), [0xaa; 32]);
+        assert_eq!(parse_seed(&format!("0x{bare}")).unwrap(), [0xaa; 32]);
+    }
+
+    #[test]
+    fn parse_seed_rejects_bad_length_and_non_hex() {
+        assert!(parse_seed(&"a".repeat(63)).is_err(), "wrong length must fail");
+        assert!(parse_seed(&"a".repeat(65)).is_err(), "wrong length must fail");
+        // Right length, but 'z' is not hex — a trust-boundary reject, not a silent 0.
+        assert!(parse_seed(&"z".repeat(64)).is_err(), "non-hex must fail");
+    }
+
+    #[test]
+    fn representative_target_is_deterministic() {
+        assert_eq!(representative_target(17), representative_target(17));
+    }
+
+    #[test]
+    fn representative_target_reproduces_the_fresh_share() {
+        // DESIGN §1.3: ~36.6% of real payees are fresh. The pool must reproduce that split,
+        // and it must hold for small pools too — a blocky `index % 100 < 37` would make a
+        // 32-member pool all-fresh and the SDK would refuse it (PoolNotRepresentative).
+        let fresh = (0u32..1000).filter(|&i| !representative_target(i).exists).count();
+        let share = fresh as f64 / 1000.0;
+        assert!((0.30..=0.44).contains(&share), "fresh share {share} off target ~0.37");
+
+        let small = (0u32..32).filter(|&i| !representative_target(i).exists).count();
+        assert!((6..=18).contains(&small), "small-pool fresh count {small} degenerate");
+    }
+
+    #[test]
+    fn representative_history_members_have_history() {
+        let hist = (0u32..100).map(representative_target).find(|p| p.exists).unwrap();
+        assert!(hist.prior_sigs > 0, "a history member must carry prior signatures");
+    }
 }
 
 /// Parse a 64-hex-char (32-byte) master seed.

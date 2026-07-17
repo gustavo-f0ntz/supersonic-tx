@@ -72,7 +72,6 @@ fn sdk_planned_bundle_settles_on_program() {
         7,
         real_dest,
         real_amount,
-        DestProfile::observed(700, Some(6_000_000), Some(80)),
         &warm_pool(32),
         k,
         DecoyConfig::default(),
@@ -110,7 +109,6 @@ fn underfunded_sdk_bundle_reverts_atomically() {
         1,
         real_dest,
         LAMPORTS_PER_SOL, // real leg alone exceeds the balance
-        DestProfile::observed(700, Some(6_000_000), Some(80)),
         &warm_pool(32),
         8,
         DecoyConfig::default(),

@@ -176,9 +176,6 @@ pub fn derive_sink_keypair(master_seed: &[u8; 32], index: u32) -> Keypair {
 /// * `bundle_id` — a per-bundle nonce; combined with the seed it makes the amount and
 ///   position draw reproducible.
 /// * `real_dest` / `real_amount` — the user's genuine intent.
-/// * `real_profile` — the observed on-chain profile of `real_dest` (one
-///   `getSignaturesForAddress` call). Used only to assert the pool reproduces the same
-///   population; the selection never biases toward it.
 /// * `pool` — the warmed destination pool. Decoys are drawn from its **eligible**
 ///   members.
 /// * `k` — total legs including the real one, `MIN_LEGS..=MAX_LEGS`.
@@ -195,7 +192,6 @@ pub fn plan_bundle(
     bundle_id: u64,
     real_dest: Pubkey,
     real_amount: u64,
-    real_profile: DestProfile,
     pool: &WarmingPool,
     k: usize,
     cfg: DecoyConfig,
@@ -216,7 +212,7 @@ pub fn plan_bundle(
     // Destination layer FIRST, so a cold pool fails closed before we waste any work — and
     // before the amount draw, so a caller that retries a failed plan gets the same amounts
     // for a given (seed, id) once the pool warms.
-    let members = match pool.select(&real_profile, k, &mut rng) {
+    let members = match pool.select(k, &mut rng) {
         Selection::Matched(members) => members,
         Selection::PoolTooCold { eligible, needed } => {
             return Err(SdkError::PoolTooCold { eligible, needed })
@@ -388,8 +384,8 @@ mod tests {
     fn plan_is_deterministic_in_seed_and_id() {
         let dest = Keypair::new().pubkey();
         let pool = warm_pool(32);
-        let a = plan_bundle(&SEED, 1, dest, 1_337_000, real_prof(), &pool, 5, DecoyConfig::default()).unwrap();
-        let b = plan_bundle(&SEED, 1, dest, 1_337_000, real_prof(), &pool, 5, DecoyConfig::default()).unwrap();
+        let a = plan_bundle(&SEED, 1, dest, 1_337_000, &pool, 5, DecoyConfig::default()).unwrap();
+        let b = plan_bundle(&SEED, 1, dest, 1_337_000, &pool, 5, DecoyConfig::default()).unwrap();
         assert_eq!(a.amounts(), b.amounts(), "same seed+id => same amounts");
         assert_eq!(a.destinations(), b.destinations(), "same seed+id => same dests");
         assert_eq!(a.real_index, b.real_index);
@@ -399,7 +395,7 @@ mod tests {
     fn real_leg_present_exactly_once_with_right_value() {
         let dest = Keypair::new().pubkey();
         let pool = warm_pool(32);
-        let plan = plan_bundle(&SEED, 9, dest, 4_200_000, real_prof(), &pool, 6, DecoyConfig::default()).unwrap();
+        let plan = plan_bundle(&SEED, 9, dest, 4_200_000, &pool, 6, DecoyConfig::default()).unwrap();
         assert_eq!(plan.legs.len(), 6);
         let reals: Vec<_> = plan.legs.iter().filter(|l| l.is_real).collect();
         assert_eq!(reals.len(), 1, "exactly one real leg");
@@ -412,7 +408,7 @@ mod tests {
     fn decoys_come_from_the_pool_and_are_recoverable_from_seed() {
         let dest = Keypair::new().pubkey();
         let pool = warm_pool(32);
-        let plan = plan_bundle(&SEED, 3, dest, 2_000_000, real_prof(), &pool, 5, DecoyConfig::default()).unwrap();
+        let plan = plan_bundle(&SEED, 3, dest, 2_000_000, &pool, 5, DecoyConfig::default()).unwrap();
         for leg in plan.legs.iter().filter(|l| !l.is_real) {
             let idx = leg.pool_index.expect("decoy carries its pool index");
             let kp = derive_pool_keypair(&SEED, idx);
@@ -425,7 +421,7 @@ mod tests {
         let dest = Keypair::new().pubkey();
         // Model non-empty (so it could sample), but zero warmed members => cannot match.
         let pool = WarmingPool::new(ProfileModel::from_profiles([real_prof()]));
-        let err = plan_bundle(&SEED, 1, dest, 1_000_000, real_prof(), &pool, 8, DecoyConfig::default())
+        let err = plan_bundle(&SEED, 1, dest, 1_000_000, &pool, 8, DecoyConfig::default())
             .unwrap_err();
         assert_eq!(err, SdkError::PoolTooCold { eligible: 0, needed: 7 });
     }
@@ -435,11 +431,11 @@ mod tests {
         let dest = Keypair::new().pubkey();
         let pool = warm_pool(32);
         assert!(matches!(
-            plan_bundle(&SEED, 1, dest, 1_000, real_prof(), &pool, 1, DecoyConfig::default()),
+            plan_bundle(&SEED, 1, dest, 1_000, &pool, 1, DecoyConfig::default()),
             Err(SdkError::BadAnonymitySet(1))
         ));
         assert!(matches!(
-            plan_bundle(&SEED, 1, dest, 0, real_prof(), &pool, 4, DecoyConfig::default()),
+            plan_bundle(&SEED, 1, dest, 0, &pool, 4, DecoyConfig::default()),
             Err(SdkError::ZeroRealAmount)
         ));
     }
@@ -449,7 +445,7 @@ mod tests {
         let dest = Keypair::new().pubkey();
         let pool = warm_pool(32);
         let user = Keypair::new().pubkey();
-        let plan = plan_bundle(&SEED, 2, dest, 3_000_000, real_prof(), &pool, 4, DecoyConfig::default()).unwrap();
+        let plan = plan_bundle(&SEED, 2, dest, 3_000_000, &pool, 4, DecoyConfig::default()).unwrap();
         let ix = build_instruction(Pubkey::new_unique(), user, &plan);
         // signer + system_program + K destinations.
         assert_eq!(ix.accounts.len(), 2 + 4);
