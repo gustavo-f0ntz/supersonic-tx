@@ -1,0 +1,18 @@
+[package]
+name = "supersonic-dest-harness"
+version = "0.1.0"
+description = "Adversarial harness for the destination-history channel of supersonic-tx bundles."
+edition = "2021"
+license = "MIT"
+
+[[bin]]
+name = "dest-advantage"
+path = "src/bin/dest_advantage.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
