@@ -1,0 +1,16 @@
+[package]
+name = "supersonic-sdk"
+version = "0.1.0"
+description = "Client SDK for supersonic-tx: channel-complete intent-ambiguous bundle planning (amount layer credited to PR #1; destination layer new)."
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+solana-sdk = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+rand_chacha = { workspace = true }

@@ -1,7 +1,10 @@
 [workspace]
 members = [
     "programs/*",
+    "supersonic-sdk",
+    "cli",
     "dest-harness",
+    "e2e",
 ]
 resolver = "2"
 

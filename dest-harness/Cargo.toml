@@ -10,6 +10,7 @@ name = "dest-advantage"
 path = "src/bin/dest_advantage.rs"
 
 [dependencies]
+supersonic-sdk = { path = "../supersonic-sdk" }
 anyhow = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }

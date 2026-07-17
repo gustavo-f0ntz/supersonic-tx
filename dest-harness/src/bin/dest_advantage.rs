@@ -81,7 +81,7 @@ fn main() -> Result<()> {
     // closure is generalization — not decoys drawn from the same rows as the reals.
     let mut split_rng = ChaCha20Rng::seed_from_u64(args.seed ^ 0x5D17);
     let (train, test) = split(&study, &mut split_rng);
-    let model = ProfileModel::fit(&train);
+    let model = ProfileModel::from_profiles(train.iter().map(|r| r.to_profile()));
 
     let mut rows = Vec::new();
     for &k in &args.k {

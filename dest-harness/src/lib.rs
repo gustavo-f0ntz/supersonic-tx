@@ -216,7 +216,7 @@ mod tests {
 
         let mut rng = ChaCha20Rng::seed_from_u64(42);
         let (train, test) = split(&study, &mut rng);
-        let model = ProfileModel::fit(&train);
+        let model = ProfileModel::from_profiles(train.iter().map(|r| r.to_profile()));
 
         let k = 8;
         // Open: fresh decoys (PR #1's construction), real legs from the test split.
