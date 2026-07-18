@@ -197,18 +197,14 @@ third-party-funded**, a residual of **+0.27 (K=2) to +0.51 (K=16)**, nearly the 
 open history channel. So for P2P payees, closing history buys little while the funding graph
 stays open — the point of this section, now with a number and an honest scope.
 
-This is the circular dependency at the center of the whole bounty, stated plainly:
+Closing it needs decoys funded by unlinkable third parties — a crowd — which no
+self-funded scheme can synthesize (the interface for that is specified in `CHANNELS.md
+§5.1`).
 
-- **supersonic-tx**'s dominant leak closes only with aged, plausibly-funded decoy
-  identities → **account-cooker**'s job.
-- **account-cooker**'s identities are self-funded → the funding graph re-links them →
-  no anonymity set.
-- A crowd of **other people**'s activity closes it → **mirror-pool**.
-
-Our honest scope: **close the history channel, measure the funding residual, specify the
-interface a crowd must implement to close it.** We do not claim to close what self-funded
-decoys cannot. Overclaiming is the failure PR #1 spent fifteen commits walking back; we
-will not repeat it.
+Our honest scope: **close the history channel, measure the funding residual, and specify
+the crowd interface that would close it.** We do not claim to close what self-funded decoys
+cannot. Overclaiming is the failure PR #1 spent fifteen commits walking back; we will not
+repeat it.
 
 ## 5. Deliverables
 

@@ -215,7 +215,7 @@ channel (+0.317…+0.598). Scoped honestly:
   property of who you actually pay, not of the transfer population at large.
 
 Either way the design point stands: no self-funded decoy scheme closes the third-party-payee
-case — only a crowd of other people's activity can (the mirror-pool interface,
-`CHANNELS.md §5.1`). A full-population figure that resolves the transient accounts' wallet
+case — only decoys funded by unlinkable third parties (a crowd) can, the interface for which
+is specified in `CHANNELS.md §5.1`. A full-population figure that resolves the transient accounts' wallet
 funders needs per-account-type tracing (or an archival RPC); it would *lower* the average,
 not raise the P2P-payee number.

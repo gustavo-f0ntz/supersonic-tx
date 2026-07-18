@@ -105,22 +105,19 @@ closed by any self-funded decoy scheme, including this one. We close the history
 **measure** the funding residual, and do **not** claim to close it.
 (Overclaiming here is the exact failure PR #1 spent fifteen commits walking back.)
 
-### 5.1 The circular dependency — and the crowd interface
+### 5.1 What would close it — the crowd interface
 
-The bounty's three tools form a cycle, and this residual is where they meet:
+Closing this residual requires decoy destinations whose funding provenance is **not** the
+signer's: addresses drawn from a set of mutually unlinkable, **externally-funded**
+participants. That is a *crowd*, and no single self-funded actor can synthesize one — which
+is precisely why supersonic-tx cannot close the residual alone and does not claim to.
 
-- **supersonic-tx** closes its dominant leak only with aged, plausibly-funded decoy
-  identities → that is **account-cooker**'s job.
-- **account-cooker**'s identities are self-funded → the funding graph re-links them →
-  they form no anonymity set.
-- A crowd of **other people's** activity closes it → that is **mirror-pool**.
-
-The interface a crowd must satisfy to close §5: decoy destinations whose funding
-provenance is **not** the signer's — i.e. addresses drawn from a set of mutually
-unlinkable, externally-funded participants — presented to `plan_bundle` in place of
-self-derived pool members, while preserving I1/I2 (the user must still be able to prove no
-custodial hold and recover any misdirected funds). supersonic-tx defines the slot; it does
-not implement the crowd.
+So supersonic-tx defines the **interface**, not the crowd: decoy destinations presented to
+`plan_bundle` in place of self-derived pool members, funded by unlinkable third parties,
+while preserving I1/I2 (the user must still prove no custodial hold and recover any
+misdirected funds). A complementary source of externally-funded, plausibly-aged identities
+would slot in here; supplying that source is a separate problem from the one this tool
+solves.
 
 ## 6. Out of scope (named, not hidden)
 
