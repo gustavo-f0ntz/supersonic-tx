@@ -18,7 +18,7 @@ real mainnet transfer destinations already have on-chain history** (n=1181, meas
 One `getSignaturesForAddress` per leg turns that gap into a **+0.60 advantage at K=16 —
 roughly 50× the amount-channel advantage**. This system closes that channel with a
 pre-warmed decoy pool whose history profile is drawn from the same distribution as real
-payees, fails closed when it can't match, and states the residual it cannot close (the
+payees, fails closed when it can't match, and **measures** the residual it cannot close (the
 funding graph). It is the 2017→2018 Monero decoy-selection lesson, ported to Solana.
 
 ## Read in this order
@@ -62,11 +62,14 @@ cargo run -p supersonic-cli -- --help
 ## What it does not claim
 
 The defense closes the destination-history channel to a measured floor (+0.014 at K=16,
-the same order as PR #1's amount-channel floor). It does **not** close funding
-provenance: self-funded decoys re-link to the signer one hop out through the funding
-graph, and breaking that link is mixing — which the non-custodial posture forbids by
-design. That residual is stated open and specified as an interface a crowd of external
-participants must implement. See [CHANNELS.md §5](CHANNELS.md).
+the same order as PR #1's amount-channel floor). It does **not** close funding provenance:
+a decoy funded by the signer re-links one hop out, so a third-party-funded real payee still
+stands out. We measured it — for durable P2P payees, **86.5% are third-party-funded, a
+residual of +0.27–0.51** (`PROOF.md §6`) that no self-funded decoy scheme can close; only
+decoys funded by unlinkable third parties (a crowd) can. (Most *raw* transfer destinations,
+though, turn out to be self-funded transient token accounts a decoy already matches — the
+residual is a property of who you actually pay, not the transfer population at large.) See
+[CHANNELS.md §5](CHANNELS.md).
 
 **Deployed on devnet** — [program `D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be`](https://explorer.solana.com/address/D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be?cluster=devnet),
 with a real CLI-planned bundle settled on chain ([tx](https://explorer.solana.com/tx/5zd9D1V51Grjjm9tB38jimgdAHwAb3n5s4gqgwYUQgx5FMoygJpKKkEhVciZCNGS56NVxZJKNDsq65ADw8GtojjR?cluster=devnet), status Ok). See [PROOF.md §4.1](PROOF.md).
