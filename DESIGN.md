@@ -188,6 +188,15 @@ an adversary who walks the funding graph re-identifies the decoys and the leg th
 doesn't trace back is the real one. Breaking that link is mixing, which the I1 posture
 forbids by design.
 
+**Measured** (PROOF §6), with a twist worth stating: tracing 749 real transfer
+destinations, only 27% resolve to a SOL funder — the other 73% are **transient token
+accounts** (95% now closed; wrapped-SOL ATAs created and closed inside one swap tx), the
+sender's own self-funded plumbing, which a self-funded decoy already matches. Among the
+durable-wallet minority — genuine P2P payees, what this tool actually pays — **86.5% were
+third-party-funded**, a residual of **+0.27 (K=2) to +0.51 (K=16)**, nearly the size of the
+open history channel. So for P2P payees, closing history buys little while the funding graph
+stays open — the point of this section, now with a number and an honest scope.
+
 This is the circular dependency at the center of the whole bounty, stated plainly:
 
 - **supersonic-tx**'s dominant leak closes only with aged, plausibly-funded decoy

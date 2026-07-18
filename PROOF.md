@@ -156,18 +156,66 @@ on chain with `SelfDestination` (Error 6004) before anything moved.
 ```
 $ cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml   # e2e loads this .so
 $ cargo test --workspace
-    ... 48 passed; 0 failed
+    ... 54 passed; 0 failed
 ```
 
 Five crates: `programs/supersonic-tx` (router), `supersonic-sdk` (amount + destination
 layers), `supersonic-cli` (CLI), `dest-harness` (measurement), `e2e` (on-chain proof).
-The 48 cover the amount layer's exchangeability, the destination pool's fail-closed
+The 54 cover the amount layer's exchangeability, the destination pool's fail-closed
 selection, **every program invariant** (`e2e/tests/program_invariants.rs` — each
 `SupersonicError` and later-leg-revert atomicity), the SDK→program seam, and the CLI's
 input parsing.
 
-## 6. What this does NOT prove — read `CHANNELS.md`
+## 6. The residual it does NOT close — the funding graph, measured
 
-The defended residual is the ceiling of a **fully-warmed** pool. It does not close the
-**funding graph**: self-funded decoys re-link to the signer one hop out (§4 of
-`DESIGN.md`). That residual is stated open, not measured away. See `CHANNELS.md`.
+The defended residual above is the ceiling of a **fully-warmed** pool on the *history*
+channel. It does not close the **funding graph**: a decoy funded by the signer re-links to
+them one hop out, so the leg whose destination was funded by *someone else* — the genuine
+third-party payee — is the real one (DESIGN §4). We measured how big that residual is, and
+found something about mainnet transfers worth stating on its own.
+
+Method (`dest-harness/src/funding.rs` + the `funding-residual` bin, over an out-of-tree
+mainnet collection of the same 749 history destinations): for each, find the first funder
+of its destination and check whether it is the paying signer. A self-funded decoy always
+has `funder == signer`; a third-party-funded real payee does not.
+
+**The finding — most "transfer destinations" are not payees.** Only 200 of 749 (27%)
+resolve to a first SOL funder at all. The other 73% are **transient token accounts** — we
+sampled and classified them: **95% are already closed**, and the ones we dumped are
+Associated Token Accounts for wrapped SOL, created + funded + `syncNative`'d + `closeAccount`'d
+inside a single swap transaction (net SOL delta zero, so no "first funder" exists). These
+are the sender's **own** swap plumbing, self-funded by construction — not third-party
+payees. A self-funded decoy is therefore *indistinguishable* from the dominant destination
+type on Solana. The funding-graph attack only bites against the minority that are durable,
+third-party-funded wallets.
+
+**The residual, scoped to that minority — genuine P2P payees:**
+
+```
+$ cargo run -p supersonic-dest-harness --bin funding-residual -- \
+      --funding data/funding_study.jsonl --study data/dest_study.jsonl
+
+  Resolved 200/749; third-party-funded among resolved: 173/200 = 86.5% (CI 81.1–90.6%)
+
+  K |  residual  | 95% CI
+  2 |   +0.274   | [+0.257, +0.287]
+  8 |   +0.480   | [+0.450, +0.503]
+ 16 |   +0.514   | [+0.482, +0.538]
+```
+
+Among durable wallet destinations — the population a P2P transfer tool actually pays, and
+the population its durable warmed decoys imitate — **86.5% were funded by a third party**,
+giving a residual of **+0.27 (K=2) to +0.51 (K=16)**, nearly the size of the *open* history
+channel (+0.317…+0.598). Scoped honestly:
+
+- **For P2P payees, the funding residual is large** — closing the history channel buys
+  little for the durable-payee case, exactly the §4 thesis.
+- **Over all raw System transfers, most destinations are self-funded swap plumbing**, which
+  a self-funded decoy matches — so the *average* leak is smaller, and the residual is a
+  property of who you actually pay, not of the transfer population at large.
+
+Either way the design point stands: no self-funded decoy scheme closes the third-party-payee
+case — only a crowd of other people's activity can (the mirror-pool interface,
+`CHANNELS.md §5.1`). A full-population figure that resolves the transient accounts' wallet
+funders needs per-account-type tracing (or an archival RPC); it would *lower* the average,
+not raise the P2P-payee number.

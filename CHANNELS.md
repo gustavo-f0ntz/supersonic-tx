@@ -33,7 +33,7 @@ real leg in *every* observable channel, not just one.
 | **Destination — history existence** | does the account exist before the bundle slot? | **Closed** (this system's contribution) | open +0.317→+0.598 → defended −0.001→+0.014 (`PROOF.md §2`) |
 | **Destination — age / txcount / recency** | profile of prior activity | **Closed** — same warmed-pool matching | all classifiers +0.601 open → +0.014 defended |
 | **Atomicity / partial landing** | did only some legs settle? | **Closed** (program invariant I3) | `underfunded_sdk_bundle_reverts_atomically` (`PROOF.md §4`) |
-| **Destination — funding provenance** | does the decoy's funding trace to the signer? | **OPEN — residual, stated not solved** | §5 below |
+| **Destination — funding provenance** | does the decoy's funding trace to the signer? | **OPEN — measured +0.27…+0.51 for durable P2P payees (most destinations are self-funded plumbing decoys already match); not solvable by self-funded decoys** | §5 below |
 | **Timing / co-signing / same-tx correlation** | all legs share one tx and signer | Inherent to the construction; out of scope | §6 |
 
 ### 3.1 Amount channel — table stakes, credited
@@ -73,7 +73,7 @@ no, not silently degraded.
   malformed or underfunded leg.
 - **I4 Fail-closed** — malformed input reverts rather than degrading.
 
-## 5. The open residual — funding provenance (§4 of DESIGN.md)
+## 5. The residual — funding provenance, measured (§4 of DESIGN.md)
 
 Matching `(age, tx_count, recency)` closes history-*existence*. It does **not** close
 **provenance**. A decoy destination must be (a) user-controlled, to be recoverable (I2);
@@ -83,11 +83,27 @@ signer, an adversary who walks the funding graph re-identifies the decoys as sel
 and the one leg that *doesn't* trace back — the genuine third-party payee — is the real
 one. The leak returns one hop out.
 
-Breaking that link means severing your own funding provenance, which is **mixing**, which
-the I1 non-custodial posture forbids by design. So this residual cannot be closed by any
-self-funded decoy scheme, including this one. We measure the history channel closed and
-state the funding channel open. We do **not** claim to close it. (Overclaiming here is the
-exact failure PR #1 spent fifteen commits walking back.)
+**How big is this residual? We measured it, and hit a finding worth stating** (`PROOF.md
+§6`). Tracing the first funder of 749 real transfer destinations: only 27% resolve to a SOL
+funder at all — the other 73% are **transient token accounts** (95% now closed; the ones we
+dumped are wrapped-SOL ATAs created + funded + closed inside one swap tx). Most mainnet
+"transfer destinations" are the sender's **own** swap plumbing, self-funded by construction
+— so a self-funded decoy is *indistinguishable* from the dominant destination type. The
+attack bites only against the minority that are durable, third-party-funded wallets — and
+there it bites hard: **86.5% of durable payees were third-party-funded** (CI 81.1–90.6%),
+residual **+0.27 (K=2) to +0.51 (K=16)**, nearly the size of the open history channel.
+
+So the honest scoping: for **genuine P2P payees** — what a transfer tool pays, and what its
+durable warmed decoys imitate — the funding residual is large, exactly the §4 thesis. Over
+*all* raw transfers the average leak is smaller, because most destinations are self-funded
+plumbing the decoys already match. The residual is a property of who you pay, not of the
+transfer population at large.
+
+Breaking the link means severing your own funding provenance, which is **mixing**, which
+the I1 non-custodial posture forbids by design. So the third-party-payee residual cannot be
+closed by any self-funded decoy scheme, including this one. We close the history channel,
+**measure** the funding residual, and do **not** claim to close it.
+(Overclaiming here is the exact failure PR #1 spent fifteen commits walking back.)
 
 ### 5.1 The circular dependency — and the crowd interface
 
@@ -124,7 +140,7 @@ not implement the crowd.
 | Amount channel closed | Yes — credited reimpl, PR #1's floor |
 | Destination-history channel closed | **Yes — measured, +0.598 → +0.014 at K=16** |
 | Bundle atomic & non-custodial | Yes — program invariants, e2e-proven |
-| Funding-graph provenance closed | **No — open residual, requires an external crowd** |
+| Funding-graph provenance closed | **No — measured +0.27…+0.51 for durable P2P payees; requires an external crowd** |
 | Same-tx correlation hidden | No — out of scope by construction |
 
 The contribution is the middle two rows measured, and the fourth row stated open rather
