@@ -57,6 +57,9 @@ fn raw_ix(user: Pubkey, dests: &[Pubkey], amounts: &[u64]) -> Instruction {
     }
 }
 
+// The large `Err` variant is litesvm's `FailedTransactionMetadata`, which carries the logs
+// these tests assert on. Boxing it would only hide the metadata we need.
+#[allow(clippy::result_large_err)]
 fn submit(svm: &mut LiteSVM, user: &Keypair, ix: Instruction) -> litesvm::types::TransactionResult {
     let bh = svm.latest_blockhash();
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&user.pubkey()), &[user], bh);
@@ -165,7 +168,7 @@ fn later_leg_failure_reverts_earlier_legs() {
     // The case the SDK can never build: leg 0 is a valid transfer that *executes*, then leg
     // 1 asks for more than the remaining balance and the CPI fails. I3 requires the whole
     // bundle to revert, so leg 0's already-applied transfer must be rolled back to zero.
-    let (mut svm, user) = boot(1 * SOL);
+    let (mut svm, user) = boot(SOL);
     let dests = fresh_dests(2);
     let amounts = [400_000_000u64, 900_000_000]; // 0.4 fits; 0.9 more does not
     assert!(

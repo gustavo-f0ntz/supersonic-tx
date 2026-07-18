@@ -28,8 +28,9 @@ jobs:
       - name: Format check
         run: cargo fmt --all -- --check
 
+      # The tree is warning-free, so a warning is a regression, not background noise.
       - name: Clippy
-        run: cargo clippy --workspace --all-targets
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Install Solana toolchain (for cargo build-sbf)
         run: |

@@ -7,7 +7,8 @@
 //! > "The destination-history channel is a separate, acknowledged attack (defended
 //! > operationally by pre-warming decoy addresses / a companion account-cooker), not
 //! > something this harness claims to measure."
-//!   — `harness/src/classifiers.rs`, PR #1
+//! >
+//! > — `harness/src/classifiers.rs`, PR #1
 //!
 //! This crate measures it, using PR #1's own metric (`advantage = accuracy − 1/K`)
 //! and its train/test discipline, so the two numbers land in one comparable table.

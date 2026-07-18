@@ -17,6 +17,18 @@ no-idl = []
 no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build"]
 
+[lints.rust.unexpected_cfgs]
+# Anchor's `#[program]` / `#[derive(Accounts)]` macros expand to `cfg` checks for feature
+# flags they own (`anchor-debug`) and for the SBF target's `custom-heap`/`custom-panic`/
+# `solana` cfgs, none of which cargo knows about on a host build. Declaring them here keeps
+# `cargo clippy --workspace --all-targets` warning-free instead of training reviewers to
+# ignore a permanently-noisy build.
+level = "warn"
+check-cfg = [
+    'cfg(feature, values("anchor-debug", "custom-heap", "custom-panic"))',
+    'cfg(target_os, values("solana"))',
+]
+
 [dependencies]
 # 0.31.1 is the Anchor line that unifies with litesvm 0.6 + solana 2.2 across the
 # workspace (0.32 needs a newer solana-account-info than litesvm 0.6 pins). We use no

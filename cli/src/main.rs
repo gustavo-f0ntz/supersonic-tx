@@ -2,14 +2,14 @@
 //!
 //! Subcommands cover the lifecycle the design needs:
 //!
-//! * `warm`    — derive the pool's decoy addresses from your seed and record them, so you
-//!               can fund and age them into a matched history profile.
-//! * `plan`    — turn one real transfer into an intent-ambiguous bundle drawn from the
-//!               warmed pool. **Fails closed** (non-zero exit) if the pool is too cold.
+//! * `warm` — derive the pool's decoy addresses from your seed and record them, so you
+//!   can fund and age them into a matched history profile.
+//! * `plan` — turn one real transfer into an intent-ambiguous bundle drawn from the
+//!   warmed pool. **Fails closed** (non-zero exit) if the pool is too cold.
 //! * `inspect` — show exactly what an on-chain observer sees for a planned bundle.
 //! * `recover` — derive the pool addresses to sweep parked decoy funds back to your sinks.
-//! * `send`    — plan and submit to an RPC. **Simulates by default**; `--broadcast` to
-//!               actually move funds. The program must be deployed on the target cluster.
+//! * `send` — plan and submit to an RPC. **Simulates by default**; `--broadcast` to
+//!   actually move funds. The program must be deployed on the target cluster.
 //!
 //! `warm`/`plan`/`inspect`/`recover` are fully offline; only `send` touches the network.
 
@@ -433,6 +433,20 @@ fn representative_target(index: u32) -> DestProfile {
     DestProfile::observed(sigs, Some(age), Some(recency))
 }
 
+/// Parse a 64-hex-char (32-byte) master seed.
+fn parse_seed(s: &str) -> Result<[u8; 32]> {
+    let s = s.strip_prefix("0x").unwrap_or(s);
+    if s.len() != 64 {
+        bail!("seed must be 64 hex chars (32 bytes), got {}", s.len());
+    }
+    let mut out = [0u8; 32];
+    for (i, byte) in out.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&s[2 * i..2 * i + 2], 16)
+            .with_context(|| "seed is not valid hex")?;
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -544,18 +558,4 @@ mod tests {
             );
         }
     }
-}
-
-/// Parse a 64-hex-char (32-byte) master seed.
-fn parse_seed(s: &str) -> Result<[u8; 32]> {
-    let s = s.strip_prefix("0x").unwrap_or(s);
-    if s.len() != 64 {
-        bail!("seed must be 64 hex chars (32 bytes), got {}", s.len());
-    }
-    let mut out = [0u8; 32];
-    for (i, byte) in out.iter_mut().enumerate() {
-        *byte = u8::from_str_radix(&s[2 * i..2 * i + 2], 16)
-            .with_context(|| "seed is not valid hex")?;
-    }
-    Ok(out)
 }
