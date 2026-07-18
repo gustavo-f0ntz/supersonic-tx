@@ -42,13 +42,13 @@ harness does, so the two are directly comparable):
 |---|---|---|---|---|
 | 2  | 0.500 | **+0.317** | [+0.308, +0.325] | **−0.001** |
 | 4  | 0.250 | **+0.476** | [+0.466, +0.485] | **−0.002** |
-| 8  | 0.125 | **+0.550** | [+0.540, +0.560] | **+0.011** |
-| 16 | 0.062 | **+0.598** | [+0.588, +0.608] | **+0.014** |
+| 8  | 0.125 | **+0.550** | [+0.540, +0.560] | **+0.010** |
+| 16 | 0.062 | **+0.598** | [+0.588, +0.608] | **+0.007** |
 
 For comparison, PR #1 reports **+0.037 (K=2) → +0.012 (K=16)** on the amount channel,
 measured with destinations held constant. The open destination channel is **~9× to ~50×**
-larger; the defended residual (+0.014 at K=16) lands on the same order as PR #1's own
-amount-channel floor (+0.012) — a small measured floor, not a suspicious exact zero.
+larger; the defended residual (a small floor, +0.007 at K=16) lands on the same order as PR
+#1's own amount-channel floor (+0.012) — a small measured floor, not a suspicious exact zero.
 
 **Two facts the table makes concrete:**
 
@@ -60,23 +60,23 @@ amount-channel floor (+0.012) — a small measured floor, not a suspicious exact
    with decoys at zero history, *any* history feature separates them. One
    `getSignaturesForAddress` per leg.
 
-The `defended` column draws decoys from a `WarmingPool` whose profile distribution is
-fit on the **train** split; the real legs come from the **held-out test** split, so the
-closure is generalization, not decoys sampled from the same rows as the reals.
-
-**Measured through the deployed path, not only a model.** The table's defended decoys come
-from the model draw (the fully-warmed ceiling). A separate test,
-`select_path_closes_the_channel`, builds an actual `WarmingPool` of matured members and
-draws every decoy through the **real `WarmingPool::select`** path — the same maturity gate
-and fresh-share check a user's SDK runs — and reproduces the same ~0 closure. The number
-and the code that produces it are the same path, not a model standing in for it.
+The `defended` column draws its decoys through the **real `WarmingPool::select` path** —
+a warmed pool of matured members reproducing the train distribution, with the same maturity
+gate and fresh-share check a user's SDK runs — and the real legs come from the **held-out
+test** split, so the closure is generalization *and* is produced by the deployed selection
+code, not a model standing in for it. (The unit test `select_path_closes_the_channel`
+reproduces the same closure on an independent synthetic pool, so the property is pinned in
+CI as well as in the published run.)
 
 > **Population note.** The study samples *all* System-program transfers; §6 finds that ~73%
 > of those destinations are transient token accounts (swap plumbing), not durable payees. A
 > fresh swap-ATA does not leak on the history channel (it has no history, like a decoy), so
 > the +0.60 headline is measured over the *blended* transfer population and is **conservative
-> for durable P2P payees** — the case this tool targets — who almost all have history. The
-> real-use-case advantage is if anything larger than the number shown.
+> for durable P2P payees** — the case this tool targets — who almost all have history.
+> Concretely: the advantage tracks the history share as `≈ P(history)·(1−1/K)` (the
+> `advantage_tracks_the_share_of_real_payees_with_history` test pins this), so at P≈63% it is
+> +0.60, and for durable payees at P→~100% it is **+0.94 at K=16**, not +0.60. The number
+> shown understates the leak for the real use case.
 
 ### 2.1 It also holds against a *learned* adversary, not just the best single bit
 
@@ -88,18 +88,18 @@ recency)` jointly on the train split and predicts on test.
 | K | learned, open | learned, defended | (best single, defended) |
 |---|---|---|---|
 | 2  | +0.317 | **+0.025** | −0.001 |
-| 4  | +0.476 | **+0.021** | −0.002 |
-| 8  | +0.550 | **+0.018** | +0.011 |
-| 16 | +0.598 | **+0.010** | +0.014 |
+| 4  | +0.476 | **+0.026** | −0.002 |
+| 8  | +0.550 | **+0.012** | +0.010 |
+| 16 | +0.598 | **+0.009** | +0.007 |
 
 Two honest readings. (1) On the **open** channel the union attack recovers exactly the
 single-bit leak — with decoys at zero history there is nothing to combine. (2) On the
 **defended** pool it extracts a slightly *larger* residual than any single classifier at
 low K (+0.025 vs −0.001 at K=2) — the small distributional slack the pool's
 `FRESH_SHARE_TOL` permits is the most a combined attacker can turn into signal. That
-residual is real, stated, and still ~13–50× below the open leak and on the same order as
-PR #1's amount-channel floor (+0.012). The defense is not beating one hand-picked
-classifier; it holds against the union.
+residual is real, stated, and still well over an order of magnitude below the open leak and
+on the same order as PR #1's amount-channel floor (+0.012). The defense is not beating one
+hand-picked classifier; it holds against the union.
 
 ## 3. The defense fails closed — it is not a silent degradation
 

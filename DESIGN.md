@@ -98,7 +98,9 @@ Note on population (see §4): the study samples all System transfers, of which ~
 out to be transient token accounts (swap plumbing). A fresh swap-ATA does not leak here
 (no history, like a decoy), so the advantage above is measured over the *blended*
 population and is **conservative for durable P2P payees** — the case this tool targets,
-who almost all carry history.
+who almost all carry history. The advantage tracks the history share as `≈ P(history)·(1−1/K)`,
+so at the blended P≈63% it is +0.60, while for durable payees (P→~100%) it is **+0.94 at
+K=16**. The headline understates the leak for the real use case.
 
 ## 2. Prior art
 
@@ -232,16 +234,16 @@ closure is generalization, not decoys drawn from the same rows as the reals.
 |---|---|---|
 | 2 | +0.317 | **−0.001** |
 | 4 | +0.476 | **−0.002** |
-| 8 | +0.550 | **+0.011** |
-| 16 | +0.598 | **+0.014** |
+| 8 | +0.550 | **+0.010** |
+| 16 | +0.598 | **+0.007** |
 
-The defended residual (+0.014 at K=16) is the same order as PR #1's amount-channel
-residual (+0.012): both channels close to a small measured floor, not a suspicious
-exact zero. This is the ceiling of a *fully-warmed* pool — and the deployed
-`WarmingPool::select` path (which fails closed when too few members are mature) reproduces
-the same closure (`select_path_closes_the_channel`), so the number reflects the code a user
-runs, not a model standing in for it. The funding-graph residual (§4) is untouched by
-profile matching and remains measured-open.
+The defended column is produced by drawing decoys through the **deployed
+`WarmingPool::select`** path (matured pool reproducing the train distribution, fresh-share
+gate and all), so the number reflects the code a user runs — not a model standing in for it
+(`select_path_closes_the_channel` pins the same property in CI). The residual (~+0.01, +0.007
+at K=16) is the same order as PR #1's amount-channel residual (+0.012): both channels close
+to a small measured floor, not a suspicious exact zero. The funding-graph residual (§4) is
+untouched by profile matching and remains measured-open.
 
 ## 7. Retracted theses (v0.1) and the standalone decision
 

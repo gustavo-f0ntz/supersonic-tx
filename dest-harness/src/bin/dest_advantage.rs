@@ -19,8 +19,8 @@ use supersonic_dest_harness::{
     eval::{best_attack, score, wilson_ci},
     learned::LearnedAdversary,
     load_study,
-    pool::ProfileModel,
-    sample_bundles, sample_bundles_defended, split,
+    pool::{PoolMember, ProfileModel, WarmingPool},
+    sample_bundles, sample_bundles_via_select, split,
 };
 
 #[derive(Parser, Debug)]
@@ -91,6 +91,24 @@ fn main() -> Result<()> {
     let (train, test) = split(&study, &mut split_rng);
     let model = ProfileModel::from_profiles(train.iter().map(|r| r.to_profile()));
 
+    // The DEPLOYED path: a warmed pool of matured members reproducing the train
+    // distribution. The defended column is produced by drawing decoys through the real
+    // `WarmingPool::select` (maturity gate + fresh-share check), so the published closure
+    // is the number the SDK's own selection code yields on the real study — not a model
+    // standing in for it.
+    let pool = {
+        let mut p = WarmingPool::new(model.clone());
+        for (i, r) in train.iter().enumerate() {
+            let profile = r.to_profile();
+            p.members.push(PoolMember {
+                index: i as u32,
+                target: profile,
+                current: profile,
+            });
+        }
+        p
+    };
+
     let mut rows = Vec::new();
     for &k in &args.k {
         anyhow::ensure!(k >= 2, "K must be >= 2, got {k}");
@@ -103,9 +121,9 @@ fn main() -> Result<()> {
         let hits = (open.test.accuracy * open_te.len() as f64).round() as usize;
         let (lo, hi) = wilson_ci(hits, open_te.len(), 1.96);
 
-        // Defended channel — decoys from the warmed pool.
-        let def_tr = sample_bundles_defended(&test, &model, k, args.n, &mut rng);
-        let def_te = sample_bundles_defended(&test, &model, k, args.n, &mut rng);
+        // Defended channel — decoys drawn through the real `WarmingPool::select` path.
+        let def_tr = sample_bundles_via_select(&test, &pool, k, args.n, &mut rng);
+        let def_te = sample_bundles_via_select(&test, &pool, k, args.n, &mut rng);
         let defended = best_attack(&def_tr, &def_te).context("no classifiers")?;
 
         // Learned union adversary: fit weights over all features on the train split of

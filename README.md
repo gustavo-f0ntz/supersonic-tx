@@ -61,8 +61,9 @@ cargo run -p supersonic-cli -- --help
 
 ## What it does not claim
 
-The defense closes the destination-history channel to a measured floor (+0.014 at K=16,
-the same order as PR #1's amount-channel floor). It does **not** close funding provenance:
+The defense closes the destination-history channel to a measured floor (~+0.01 at K=16, via
+the deployed selection path, the same order as PR #1's amount-channel floor). It does
+**not** close funding provenance:
 a decoy funded by the signer re-links one hop out, so a third-party-funded real payee still
 stands out. We measured it — for durable P2P payees, **86.5% are third-party-funded, a
 residual of +0.27–0.51** (`PROOF.md §6`) that no self-funded decoy scheme can close; only
