@@ -94,6 +94,12 @@ single canonical "aged address." The 36.6% fresh bucket is load-bearing — it m
 real payment to a brand-new address is common, so a defense can leave *some* legs fresh
 without leaking, which relaxes the pool requirement (§3.3).
 
+Note on population (see §4): the study samples all System transfers, of which ~73% turn
+out to be transient token accounts (swap plumbing). A fresh swap-ATA does not leak here
+(no history, like a decoy), so the advantage above is measured over the *blended*
+population and is **conservative for durable P2P payees** — the case this tool targets,
+who almost all carry history.
+
 ## 2. Prior art
 
 ### 2.1 Monero ran this experiment for eight years

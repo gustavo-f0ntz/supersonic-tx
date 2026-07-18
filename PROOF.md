@@ -64,6 +64,20 @@ The `defended` column draws decoys from a `WarmingPool` whose profile distributi
 fit on the **train** split; the real legs come from the **held-out test** split, so the
 closure is generalization, not decoys sampled from the same rows as the reals.
 
+**Measured through the deployed path, not only a model.** The table's defended decoys come
+from the model draw (the fully-warmed ceiling). A separate test,
+`select_path_closes_the_channel`, builds an actual `WarmingPool` of matured members and
+draws every decoy through the **real `WarmingPool::select`** path — the same maturity gate
+and fresh-share check a user's SDK runs — and reproduces the same ~0 closure. The number
+and the code that produces it are the same path, not a model standing in for it.
+
+> **Population note.** The study samples *all* System-program transfers; §6 finds that ~73%
+> of those destinations are transient token accounts (swap plumbing), not durable payees. A
+> fresh swap-ATA does not leak on the history channel (it has no history, like a decoy), so
+> the +0.60 headline is measured over the *blended* transfer population and is **conservative
+> for durable P2P payees** — the case this tool targets — who almost all have history. The
+> real-use-case advantage is if anything larger than the number shown.
+
 ### 2.1 It also holds against a *learned* adversary, not just the best single bit
 
 The table above picks the best single classifier. The obvious next question — "does a

@@ -32,7 +32,7 @@ use rand::seq::SliceRandom;
 use rand::Rng;
 use serde::Deserialize;
 
-use crate::pool::ProfileModel;
+use crate::pool::{ProfileModel, Selection, WarmingPool};
 use crate::profile::{Bundle, DestProfile};
 
 /// One row of the empirical mainnet study: a real transfer destination and its prior
@@ -143,6 +143,40 @@ pub fn sample_bundles_defended<R: Rng>(
 ) -> Vec<Bundle> {
     (0..n)
         .map(|_| sample_bundle_defended(reals, model, k, rng))
+        .collect()
+}
+
+/// Sample defended bundles whose decoys are drawn through the **actual**
+/// [`WarmingPool::select`] path — the deployed selection mechanism (maturity gate +
+/// fresh-share representativeness), not the idealized model draw of
+/// [`sample_bundles_defended`]. This is what ties the measured closure to the code a user
+/// runs: the number and the path that produces it are the same. Panics if the pool is not
+/// warmed enough to select (the caller is responsible for supplying a matured pool).
+pub fn sample_bundles_via_select<R: Rng>(
+    reals: &[StudyRow],
+    pool: &WarmingPool,
+    k: usize,
+    n: usize,
+    rng: &mut R,
+) -> Vec<Bundle> {
+    (0..n)
+        .map(|_| {
+            let real = reals
+                .choose(rng)
+                .expect("reals must be non-empty")
+                .to_profile();
+            let members = match pool.select(k, rng) {
+                Selection::Matched(m) => m,
+                other => panic!("pool must be warmed enough to select k={k}: {other:?}"),
+            };
+            let mut profiles: Vec<DestProfile> = members.iter().map(|m| m.current).collect();
+            let real_index = rng.gen_range(0..k);
+            profiles.insert(real_index, real);
+            Bundle {
+                profiles,
+                real_index,
+            }
+        })
         .collect()
 }
 
@@ -261,6 +295,62 @@ mod tests {
         assert!(
             closed.test.advantage.abs() < 0.05,
             "matched pool must close the channel to ~0, got {:+.3}",
+            closed.test.advantage
+        );
+    }
+
+    /// The closure, measured through the **deployed** path — not the idealized model.
+    /// Builds an actual `WarmingPool` of matured members, draws every decoy via
+    /// `WarmingPool::select` (maturity gate + fresh-share check), and shows the channel
+    /// still closes to ~0. This is what answers "you measured a *model* of a warmed pool,
+    /// not your real selection code": here they are the same code path.
+    #[test]
+    fn select_path_closes_the_channel() {
+        use crate::eval::best_attack;
+        use crate::pool::{PoolMember, ProfileModel, WarmingPool};
+
+        let mut rows = Vec::new();
+        for i in 0..600u64 {
+            let line = if i % 100 < 37 {
+                format!(
+                    r#"{{"dest":"d{i}","lamports":1,"slot":10000,"prior_sigs":0,"had_history":false}}"#
+                )
+            } else {
+                let sigs = 50 + (i % 900);
+                let age = 100_000 + i * 1000;
+                let rec = 10 + (i % 500);
+                format!(
+                    r#"{{"dest":"d{i}","lamports":1,"slot":10000,"prior_sigs":{sigs},"had_history":true,"age_slots":{age},"recency_slots":{rec}}}"#
+                )
+            };
+            rows.push(line);
+        }
+        let study = load_study(&rows.join("\n")).unwrap();
+
+        let mut rng = ChaCha20Rng::seed_from_u64(7);
+        let (train, test) = split(&study, &mut rng);
+        let model = ProfileModel::from_profiles(train.iter().map(|r| r.to_profile()));
+
+        // Warm an actual pool: 300 members whose targets are drawn from the model and are
+        // fully matured (current == target), so every one is eligible for `select`.
+        let mut pool = WarmingPool::new(model.clone());
+        for i in 0..300u32 {
+            let target = model.sample(&mut rng);
+            pool.members.push(PoolMember {
+                index: i,
+                target,
+                current: target,
+            });
+        }
+
+        let k = 8;
+        let tr = sample_bundles_via_select(&test, &pool, k, 4000, &mut rng);
+        let te = sample_bundles_via_select(&test, &pool, k, 4000, &mut rng);
+        let closed = best_attack(&tr, &te).unwrap();
+
+        assert!(
+            closed.test.advantage.abs() < 0.05,
+            "decoys drawn via the real WarmingPool::select must close the channel, got {:+.3}",
             closed.test.advantage
         );
     }
