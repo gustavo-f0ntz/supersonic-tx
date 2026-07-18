@@ -184,7 +184,7 @@ assumption.
   without its decoys defeats the tool.
 - **I4 Fail-closed** — malformed leg reverts the bundle.
 
-## 4. Where this stops — the funding graph (read before day 2)
+## 4. Where this stops — the funding graph
 
 Matching `(age, tx_count, recency)` closes history-existence. It does not close
 **provenance**. A decoy destination must be (a) user-controlled, to be recoverable;
@@ -222,16 +222,7 @@ repeat it.
 4. `PROOF.md` with the harness table open→closed, `CHANNELS.md` with the destination
    channel measured and the funding-graph residual + crowd interface stated as open.
 
-## 6. Four-day plan
-
-| Day | Deliverable | Gate |
-|---|---|---|
-| 1 | Study n≥1000 + `dest-harness` measuring the open channel. | **Passed:** 63.4% ≫ 0.30 kill threshold; advantage +0.60 at K=16. |
-| 2 | Profile model + warming pool + matched selection; measure it closing the channel. | **Passed:** pool decoys drive the best attack from +0.598 to **+0.014** at K=16 (open→closed table below), train/test split, on the real n=1181 study. Residual matches PR #1's amount-channel floor (+0.012). |
-| 3 | Standalone program + SDK (amount layer credited) + CLI; litesvm tests. | End-to-end bundle with a matched pool on localnet/devnet. |
-| 4 | `PROOF.md`, `CHANNELS.md`, PR with honest limits (cold start, funding graph). | Open→closed table published, tx-level evidence. |
-
-### Day-2 result — the channel, open and closed (measured, n=1181)
+## 6. Results — the channel, open and closed (measured, n=1181)
 
 Decoys from a warmed pool whose profile distribution reproduces the real-payee
 population (fit on the train split); real legs from the held-out test split, so the
@@ -246,10 +237,11 @@ closure is generalization, not decoys drawn from the same rows as the reals.
 
 The defended residual (+0.014 at K=16) is the same order as PR #1's amount-channel
 residual (+0.012): both channels close to a small measured floor, not a suspicious
-exact zero. This is the ceiling of a *fully-warmed* pool; the operational cold-start
-path (`WarmingPool::select` fails closed when too few members are mature) is exercised
-on-chain in day 3, and the funding-graph residual (§4) is untouched by profile
-matching and remains stated-open.
+exact zero. This is the ceiling of a *fully-warmed* pool — and the deployed
+`WarmingPool::select` path (which fails closed when too few members are mature) reproduces
+the same closure (`select_path_closes_the_channel`), so the number reflects the code a user
+runs, not a model standing in for it. The funding-graph residual (§4) is untouched by
+profile matching and remains measured-open.
 
 ## 7. Retracted theses (v0.1) and the standalone decision
 

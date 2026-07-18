@@ -183,6 +183,32 @@ mod tests {
     }
 
     #[test]
+    fn real_outside_the_default_band_is_not_left_an_outlier() {
+        // Money path: if the real amount falls outside the default [min,max] band, the band
+        // must widen to include it — otherwise every decoy sits at the band edge and the
+        // real is the obvious odd leg out (the support-boundary tell). Verify decoys reach
+        // the real's magnitude on both sides of the default band.
+        let cfg = DecoyConfig::default(); // min 1_000_000, max 100_000_000_000
+
+        let tiny = 500u64; // 2000x below min
+        let d = generate_decoy_amounts(tiny, 15, &cfg, &mut rng());
+        assert!(d.iter().all(|&a| a > 0));
+        let near_tiny = d.iter().filter(|&&a| a <= tiny * 8).count();
+        assert!(
+            near_tiny >= 5,
+            "decoys must reach down near a below-band real, got {d:?}"
+        );
+
+        let huge = 500_000_000_000u64; // 500 SOL, 5x above max
+        let d = generate_decoy_amounts(huge, 15, &cfg, &mut rng());
+        let near_huge = d.iter().filter(|&&a| a >= huge / 8).count();
+        assert!(
+            near_huge >= 5,
+            "decoys must reach up near an above-band real, got {d:?}"
+        );
+    }
+
+    #[test]
     fn real_is_exchangeable_not_systematically_extreme() {
         // Exchangeability means the real leg is the global min OR max at ~2/K — the same
         // rate as any single leg — not systematically central nor extreme. K=8 => 0.25.
