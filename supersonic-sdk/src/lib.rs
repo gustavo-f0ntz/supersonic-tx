@@ -23,6 +23,58 @@
 //! and pool destinations are recoverable from the seed by member index — so the user, and
 //! only the user, can later sweep parked funds back.
 //!
+//! ## Casting through supersonic-tx from another tool
+//!
+//! This crate *is* the integration surface — the bounty's composability requirement is met
+//! by a library dependency, not a wire format. Any Rust tool (an `account-cooker` agent, a
+//! bot, a market maker's router) plans a bundle and gets back a plain
+//! [`solana_sdk::instruction::Instruction`] it can drop into whatever transaction it was
+//! already building. There is no service to run and no custody handoff.
+//!
+//! The relationship with `account-cooker` runs both ways, and is the interesting one: an
+//! account-cooker's whole job is manufacturing believable long-lived account histories —
+//! which is exactly what a [`WarmingPool`] member needs to be. A cooker can therefore *be*
+//! the warming layer, and cast its own funding and consolidation transfers through here.
+//!
+//! ```
+//! use supersonic_sdk::{
+//!     build_instruction, plan_bundle, DecoyConfig, DestProfile, PoolMember, ProfileModel,
+//!     WarmingPool,
+//! };
+//! use solana_sdk::pubkey::Pubkey;
+//!
+//! // A caller's warmed pool. In production these profiles are observed on chain (the CLI's
+//! // `warm` writes them); here we age 32 members straight to their targets.
+//! let model = ProfileModel::from_profiles(
+//!     (0..64u32).map(|i| {
+//!         DestProfile::observed(40 + i, Some(120_000 + u64::from(i) * 900), Some(500))
+//!     }),
+//! );
+//! let mut pool = WarmingPool::new(model.clone());
+//! for index in 0..32u32 {
+//!     let target = model.sample(&mut rand::thread_rng());
+//!     pool.members.push(PoolMember { index, target, current: target });
+//! }
+//!
+//! let plan = plan_bundle(
+//!     &[7u8; 32],                 // master seed — also what recovers the decoys later
+//!     42,                         // bundle id: (seed, id) determines amounts and position
+//!     Pubkey::new_unique(),       // the real destination
+//!     1_500_000_000,              // the real amount
+//!     &pool,
+//!     8,                          // K: 1 real + 7 decoys
+//!     DecoyConfig::default(),
+//! )
+//! .expect("pool is warm enough; a cold pool fails closed instead of leaking");
+//!
+//! // Hand off to any transaction builder. Real and decoy legs are indistinguishable here.
+//! let ix = build_instruction(supersonic_tx_program_id(), payer(), &plan);
+//! assert_eq!(plan.legs.len(), 8);
+//! assert_eq!(ix.accounts.len(), 8 + 2); // K destinations + signer + system program
+//! # fn supersonic_tx_program_id() -> Pubkey { Pubkey::new_unique() }
+//! # fn payer() -> Pubkey { Pubkey::new_unique() }
+//! ```
+//!
 //! ## What this does not close
 //!
 //! Matching `(age, tx_count, recency)` closes history-*existence*. It does not close

@@ -60,7 +60,7 @@ pub mod supersonic_tx {
     /// position in `remaining_accounts`. Real and decoy legs are byte-for-byte
     /// identical in shape; the program cannot and does not tell them apart.
     ///
-    /// # Invariants (see THREAT_MODEL.md §5)
+    /// # Invariants (see CHANNELS.md §4)
     /// - **I3 Atomicity:** any failing leg reverts the whole bundle (Solana gives this
     ///   within a transaction; a partial exposure of the real leg is impossible).
     /// - **I4 Fail-closed:** a malformed leg (empty/oversized/mismatched bundle, zero

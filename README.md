@@ -45,7 +45,7 @@ e2e                      SDK-planned bundle settles on the real program in LiteS
 # 1. build the program artifact the e2e tests load by path (needs the Solana toolchain)
 cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
 
-# 2. everything, one command — 48 tests across all five crates
+# 2. everything, one command — 57 tests across all five crates
 cargo test --workspace
 #   (step 1 is required first: the 8 e2e tests load the .so and fail loudly,
 #    with a "run cargo build-sbf" message, if it isn't built)
@@ -58,6 +58,28 @@ cargo run -p supersonic-dest-harness --bin dest-advantage -- \
 # the CLI (warm/plan/inspect/recover are offline; send simulates unless --broadcast)
 cargo run -p supersonic-cli -- --help
 ```
+
+## Casting through it from another tool
+
+Composability is a **library dependency, not a wire format**: there is no service to run and
+no custody handoff. A caller plans a bundle and gets back a plain `solana_sdk::Instruction`
+to drop into whatever transaction it was already building.
+
+```rust
+let plan = plan_bundle(&seed, bundle_id, real_dest, real_amount, &pool, 8, cfg)?;
+let ix = build_instruction(program_id, payer, &plan);   // → your tx builder
+```
+
+The full working version is the [module doctest in `supersonic-sdk`](supersonic-sdk/src/lib.rs)
+— CI runs it, so this integration path is tested, not asserted.
+
+**On `account-cooker`:** the relationship runs both ways. A cooker's job is manufacturing
+believable long-lived account histories, which is exactly what a warmed pool member must be
+— so a cooker can *be* the warming layer here, and cast its own funding and consolidation
+transfers through this program. PR #1 named "a companion account-cooker" as the hypothetical
+mitigation for the destination channel; this repo is the half that consumes it, with the
+interface (`WarmingPool` / `PoolMember`) and the measurement that says when a pool is warm
+enough to be safe — and refuses when it isn't.
 
 ## What it does not claim
 

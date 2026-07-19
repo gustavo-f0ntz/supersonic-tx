@@ -34,7 +34,7 @@ real leg in *every* observable channel, not just one.
 | **Destination — age / txcount / recency** | profile of prior activity | **Closed** — same warmed-pool matching | all classifiers +0.601 open → ~+0.01 defended |
 | **Atomicity / partial landing** | did only some legs settle? | **Closed** (program invariant I3) | `underfunded_sdk_bundle_reverts_atomically` (`PROOF.md §4`) |
 | **Destination — funding provenance** | does the decoy's funding trace to the signer? | **OPEN — measured +0.27…+0.51 for durable P2P payees (most destinations are self-funded plumbing decoys already match); not solvable by self-funded decoys** | §5 below |
-| **Timing / co-signing / same-tx correlation** | all legs share one tx and signer | Inherent to the construction; out of scope | §6 |
+| **Timing / co-signing / same-tx correlation** | all legs share one tx and signer | Inherent to the construction; out of scope | §7 |
 
 ### 3.1 Amount channel — table stakes, credited
 
@@ -119,7 +119,30 @@ misdirected funds). A complementary source of externally-funded, plausibly-aged 
 would slot in here; supplying that source is a separate problem from the one this tool
 solves.
 
-## 6. Out of scope (named, not hidden)
+## 6. Pre-inclusion (mempool) vs. post-hoc analysis
+
+Worth stating plainly, because the two threats are usually named together and on Solana
+they are not symmetric: **Solana has no public mempool.** Transactions are forwarded by
+RPC providers straight to the current and next slot leaders rather than gossiped to a
+public pending pool, so there is no shared queue an observer can subscribe to and watch
+bundles before they land. The pre-inclusion surface that exists is *privileged*, not
+public: the leader, and whichever RPC provider you submitted through, see the transaction
+early — which is a trust question about your submission path, not a channel a passive
+observer reads.
+
+That is why this threat model puts a passive **post-hoc** observer (§2) at the center. It
+is the adversary that actually scales: unlimited, retroactive, and available to anyone with
+an RPC key and the confirmed ledger — which is precisely what modern chain-analysis and
+copy-trading run on. A bundle is a single atomic transaction, so it either lands whole or
+not at all; there is no partial pre-inclusion state to leak, and the K legs become visible
+at the same instant. Every number in `PROOF.md` is measured against that observer.
+
+Out of scope on the pre-inclusion side, therefore: a **malicious leader or RPC provider**
+that front-runs on early sight of the bundle. Ambiguity still holds against them — they
+read the same K indistinguishable legs everyone else does, just sooner — but they can drop
+or reorder, and this construction does not defend against that.
+
+## 7. Out of scope (named, not hidden)
 
 - **Same-tx correlation.** All K legs share one transaction and one fee-payer/signer. This
   is inherent to atomic bundling — the anonymity set is *within* the bundle, not across the
@@ -130,7 +153,7 @@ solves.
 - **Off-chain intent leaks.** If the user reveals the real destination elsewhere, no
   on-chain construction helps.
 
-## 7. Summary
+## 8. Summary
 
 | Claim | Status |
 |---|---|
