@@ -1,14 +1,20 @@
 //! # supersonic-dest-harness
 //!
 //! Measures the **destination-history channel** of `supersonic-tx` bundles — the
-//! channel PR #1's threat model acknowledges and its harness explicitly does not
-//! measure:
+//! channel PR #1's threat model acknowledged and, at the time this crate was designed,
+//! its harness explicitly did not measure:
 //!
 //! > "The destination-history channel is a separate, acknowledged attack (defended
 //! > operationally by pre-warming decoy addresses / a companion account-cooker), not
 //! > something this harness claims to measure."
 //! >
 //! > — `harness/src/classifiers.rs`, PR #1
+//!
+//! PR #1 has since added its own harness-level *model* of this channel plus a small
+//! self-collected devnet fixture — see `DESIGN.md §2.2` for the honest comparison. This
+//! crate's numbers remain the larger, population-scale claim: **n=1181 real mainnet
+//! transfers**, decoys drawn through the actual deployed `WarmingPool::select`, not a
+//! harness-only model standing in for it.
 //!
 //! This crate measures it, using PR #1's own metric (`advantage = accuracy − 1/K`)
 //! and its train/test discipline, so the two numbers land in one comparable table.

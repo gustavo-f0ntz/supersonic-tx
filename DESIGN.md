@@ -125,18 +125,32 @@ that treats the real amount as one draw from the decoys' own log-normal
 value. That is the correct amount-channel defense — the 2018 gamma fix applied to value.
 **We reimplement it, with credit, as our amount layer** (~150 lines); we do not improve
 on it and do not pretend to. Our contribution is orthogonal: the *destination* channel,
-which PR #1's harness states plainly it does not measure —
+originally held constant in his harness —
 
 > "in the harness every destination (real and decoy) is a fresh key, so the destination
 > channel is held constant... defended operationally by pre-warming decoy addresses /
 > a companion account-cooker, not something this harness claims to measure."
-> — `harness/src/classifiers.rs`
+> — `harness/src/classifiers.rs`, PR #1 at the time this system was designed
 
-Holding a channel constant is valid method; it is not a deployed defense, and the two
-mitigations it names do not exist (no pre-warming in the SDK; the `account-cooker` repo
-is one commit of scaffold). Our generalization of PR #1's own idea: he made the real
-*amount* exchangeable with the decoys'; we make the real *destination profile*
-exchangeable with the decoys'. Same construction, the harder variable.
+**Updated as of his later commits.** PR #1 has since added a harness-level *model* of
+this channel plus a small self-collected devnet fixture (18 addresses,
+`eval_history_measured`) — and is candid about its scope, in his own words: the
+pre-warmed regime's ~0 advantage "follows from the sampling construction itself... not a
+property discovered in the devnet data," and the fixture does "not validate that a real
+account-cooker's warming pattern... is itself indistinguishable from organic activity"
+(`harness/src/destination.rs`). His shipped SDK (`sdk/src/lib.rs::derive_decoy_keypair`)
+still derives a fresh key for every decoy — the model lives in the harness, not in the
+tool a caller runs. Two differences remain, both load-bearing: (1) his fixture is 18
+self-collected devnet addresses standing in for both "real payee" and "warmed decoy" at
+once; ours is **n=1181 independently-sampled real mainnet transfers** — a population, not
+a stand-in. (2) his model stops at history existence; ours ships the selection code
+itself (`WarmingPool::select`, fail-closed on `PoolTooCold`/`PoolNotRepresentative`) as
+the path a caller actually invokes, and separately measures a channel he has not
+addressed at all — the funding graph (§4), where the residual is comparable in size to
+the open history channel itself. Our generalization of PR #1's own idea stands: he made
+the real *amount* exchangeable with the decoys'; we make the real *destination profile*
+exchangeable with the decoys', ship it as the default path, and measure what remains open
+beyond it.
 
 ## 3. Design — a standalone channel-complete system
 
