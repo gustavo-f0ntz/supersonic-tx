@@ -101,6 +101,31 @@ residual is real, stated, and still well over an order of magnitude below the op
 on the same order as PR #1's amount-channel floor (+0.012). The defense is not beating one
 hand-picked classifier; it holds against the union.
 
+### 2.2 Not a lucky split — robustness across ten seeds
+
+Both tables above use `--seed 1`. A skeptic's next question is whether that split happens
+to be favorable. It isn't: `dest-harness/tests/robustness.rs` reruns the identical
+pipeline — split, fit the pool on train, draw decoys through the real
+`WarmingPool::select`, score on held-out test — across **ten independent seeds and all
+four K values** (40 measurements) and pins the result in CI.
+
+```
+$ cargo test -p supersonic-dest-harness --test robustness -- --nocapture
+```
+
+| K | defended, min | defended, max | mean \|residual\| |
+|---|---|---|---|
+| 2  | −0.027 | +0.030 | 0.006 |
+| 4  | −0.007 | +0.029 | 0.009 |
+| 8  | −0.008 | +0.035 | 0.011 |
+| 16 | −0.004 | +0.017 | 0.005 |
+
+Worst single measurement over all 40: **+0.035** (seed 10, K=8) — still **~9× below** the
+smallest *open*-channel advantage (+0.317 at K=2), and on the same order as PR #1's own
+amount-channel floor (+0.012). The test asserts every one of the 40 stays under a 0.05
+ceiling; a regression that reopens the channel on some seeds but not others would fail
+here even if `--seed 1` still looked closed.
+
 ## 3. The defense fails closed — it is not a silent degradation
 
 `supersonic-sdk::plan_bundle` refuses to emit a leaking bundle. Two refusal paths,
@@ -170,15 +195,15 @@ on chain with `SelfDestination` (Error 6004) before anything moved.
 ```
 $ cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml   # e2e loads this .so
 $ cargo test --workspace
-    ... 54 passed; 0 failed
+    ... 58 passed; 0 failed
 ```
 
-Five crates: `programs/supersonic-tx` (router), `supersonic-sdk` (amount + destination
-layers), `supersonic-cli` (CLI), `dest-harness` (measurement), `e2e` (on-chain proof).
-The 54 cover the amount layer's exchangeability, the destination pool's fail-closed
-selection, **every program invariant** (`e2e/tests/program_invariants.rs` — each
-`SupersonicError` and later-leg-revert atomicity), the SDK→program seam, and the CLI's
-input parsing.
+Six crates: `programs/supersonic-tx` (router), `supersonic-sdk` (amount + destination
+layers), `supersonic-cli` (CLI), `dest-harness` (measurement), `e2e` (on-chain proof),
+`composability-demo` (independent caller, `COMPOSABILITY.md`). The 58 cover the amount layer's exchangeability, the destination pool's fail-closed
+selection, the multi-seed robustness of the published closure (§2.2), **every program
+invariant** (`e2e/tests/program_invariants.rs` — each `SupersonicError` and
+later-leg-revert atomicity), the SDK→program seam, and the CLI's input parsing.
 
 ## 6. The residual it does NOT close — the funding graph, measured
 
