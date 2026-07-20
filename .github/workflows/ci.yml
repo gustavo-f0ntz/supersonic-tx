@@ -40,5 +40,5 @@ jobs:
       - name: Build the program .so
         run: cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
 
-      - name: Test (all five crates, incl. the LiteSVM e2e that loads the .so)
+      - name: Test (all six crates, incl. the LiteSVM e2e that loads the .so)
         run: cargo test --workspace

@@ -26,6 +26,7 @@ funding graph). It is the 2017→2018 Monero decoy-selection lesson, ported to S
 1. **[DESIGN.md](DESIGN.md)** — the thesis, the measurement, the defense, and where it stops.
 2. **[PROOF.md](PROOF.md)** — reproducible evidence: every number, one command each.
 3. **[CHANNELS.md](CHANNELS.md)** — channel-by-channel status, closed and open, and the crowd interface the open residual needs.
+4. **[COMPOSABILITY.md](COMPOSABILITY.md)** — an independent binary casting through the deployed router using only the published SDK, settled on real devnet.
 
 ## Layout
 
@@ -37,6 +38,7 @@ cli  (supersonic)        warm / plan / inspect / recover (offline) + send (simul
                          by default; --broadcast to submit to an RPC)
 dest-harness             destination-channel adversary + advantage measurement
 e2e                      SDK-planned bundle settles on the real program in LiteSVM
+composability-demo       independent binary, SDK-only dependency, real devnet proof
 ```
 
 ## Quickstart
@@ -45,7 +47,7 @@ e2e                      SDK-planned bundle settles on the real program in LiteS
 # 1. build the program artifact the e2e tests load by path (needs the Solana toolchain)
 cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
 
-# 2. everything, one command — 57 tests across all five crates
+# 2. everything, one command — 58 tests across all six crates
 cargo test --workspace
 #   (step 1 is required first: the 8 e2e tests load the .so and fail loudly,
 #    with a "run cargo build-sbf" message, if it isn't built)
@@ -71,7 +73,11 @@ let ix = build_instruction(program_id, payer, &plan);   // → your tx builder
 ```
 
 The full working version is the [module doctest in `supersonic-sdk`](supersonic-sdk/src/lib.rs)
-— CI runs it, so this integration path is tested, not asserted.
+— CI runs it, so this integration path is tested, not asserted. `composability-demo/` takes
+it further: a **separate binary**, its own `Cargo.toml`, depending only on the published
+`supersonic-sdk` crate, that planned and **broadcast a real bundle on devnet**
+([tx](https://explorer.solana.com/tx/KAP8cfKvRyqV8f5PXe58LrFnJSCbrqWhHbqiJca7fRtfaYUcHqyjr2wYVuTvWnAuethT565iNYqBg7FFdRYxSNw?cluster=devnet)).
+See [COMPOSABILITY.md](COMPOSABILITY.md).
 
 **On `account-cooker`:** the relationship runs both ways. A cooker's job is manufacturing
 believable long-lived account histories, which is exactly what a warmed pool member must be

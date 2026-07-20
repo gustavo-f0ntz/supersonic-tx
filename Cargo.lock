@@ -972,6 +972,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "composability-demo"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "rand 0.8.7",
+ "solana-client",
+ "solana-sdk",
+ "supersonic-sdk",
+]
+
+[[package]]
 name = "compression-codecs"
 version = "0.4.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"

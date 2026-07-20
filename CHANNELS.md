@@ -162,6 +162,7 @@ or reorder, and this construction does not defend against that.
 | Bundle atomic & non-custodial | Yes — program invariants, e2e-proven |
 | Funding-graph provenance closed | **No — measured +0.27…+0.51 for durable P2P payees; requires an external crowd** |
 | Same-tx correlation hidden | No — out of scope by construction |
+| Composability (external caller) | Yes — a separate binary depending only on the published SDK, real devnet tx (`COMPOSABILITY.md`) |
 
 The contribution is the middle two rows measured, and the fourth row **measured and scoped
 honestly** — a real residual for P2P payees, not papered over.

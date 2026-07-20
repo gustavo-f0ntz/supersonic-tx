@@ -3,6 +3,7 @@ members = [
     "programs/*",
     "supersonic-sdk",
     "cli",
+    "composability-demo",
     "dest-harness",
     "e2e",
 ]
