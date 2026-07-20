@@ -11,13 +11,14 @@
 
 use crate::profile::{Bundle, DestProfile};
 
-const NFEAT: usize = 4;
+pub(crate) const NFEAT: usize = 4;
 /// Sentinel "slots since last activity" for a never-active address: large, so the recency
 /// feature never ranks a fresh leg as recently-active.
 const NO_RECENCY: f64 = 10_000_000.0;
 
 /// Per-leg feature vector, each component monotone in "looks like an established payee".
-fn features(p: &DestProfile) -> [f64; NFEAT] {
+/// Shared with `forest.rs`'s nonlinear ensemble — one feature extractor, two adversaries.
+pub(crate) fn features(p: &DestProfile) -> [f64; NFEAT] {
     [
         p.exists as u8 as f64,
         (p.prior_sigs as f64).ln_1p(),

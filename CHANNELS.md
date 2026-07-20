@@ -30,7 +30,7 @@ real leg in *every* observable channel, not just one.
 | Channel | Observable | Status | Evidence |
 |---|---|---|---|
 | **Amount** | lamports per leg | **Closed** (credited reimpl of PR #1) | +0.037→+0.012, PR #1's harness |
-| **Destination — history existence** | does the account exist before the bundle slot? | **Closed** (this system's contribution) | open +0.317→+0.598 → defended −0.001→+0.007 via `WarmingPool::select` (`PROOF.md §2`) |
+| **Destination — history existence** | does the account exist before the bundle slot? | **Closed** (this system's contribution) | open +0.317→+0.598 → defended −0.001→+0.007 (best single attack), +0.09 worst-case against a nonlinear ensemble, via `WarmingPool::select` (`PROOF.md §2`, §2.3) |
 | **Destination — age / txcount / recency** | profile of prior activity | **Closed** — same warmed-pool matching | all classifiers +0.601 open → ~+0.01 defended |
 | **Atomicity / partial landing** | did only some legs settle? | **Closed** (program invariant I3) | `underfunded_sdk_bundle_reverts_atomically` (`PROOF.md §4`) |
 | **Destination — funding provenance** | does the decoy's funding trace to the signer? | **OPEN — measured +0.27…+0.51 for durable P2P payees (most destinations are self-funded plumbing decoys already match); not solvable by self-funded decoys** | §5 below |
@@ -158,7 +158,7 @@ or reorder, and this construction does not defend against that.
 | Claim | Status |
 |---|---|
 | Amount channel closed | Yes — credited reimpl, PR #1's floor |
-| Destination-history channel closed | **Yes — measured, +0.598 → ~+0.01 at K=16 (via the deployed select path)** |
+| Destination-history channel closed | **Yes — measured, +0.598 → ~+0.01 (linear) / +0.09 (nonlinear ensemble, worst case) at K=16, via the deployed select path** |
 | Bundle atomic & non-custodial | Yes — program invariants, e2e-proven |
 | Funding-graph provenance closed | **No — measured +0.27…+0.51 for durable P2P payees; requires an external crowd** |
 | Same-tx correlation hidden | No — out of scope by construction |

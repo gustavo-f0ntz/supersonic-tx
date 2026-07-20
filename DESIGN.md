@@ -254,9 +254,12 @@ closure is generalization, not decoys drawn from the same rows as the reals.
 The defended column is produced by drawing decoys through the **deployed
 `WarmingPool::select`** path (matured pool reproducing the train distribution, fresh-share
 gate and all), so the number reflects the code a user runs — not a model standing in for it
-(`select_path_closes_the_channel` pins the same property in CI). The residual (~+0.01, +0.007
-at K=16) is the same order as PR #1's amount-channel residual (+0.012): both channels close
-to a small measured floor, not a suspicious exact zero. The funding-graph residual (§4) is
+(`select_path_closes_the_channel` pins the same property in CI). The residual (~+0.01,
++0.007 at K=16) is the same order as PR #1's amount-channel residual (+0.012): both
+channels close to a small measured floor, not a suspicious exact zero. Against a
+nonlinear ensemble instead of the best single or linear attack, the honest floor is
+larger — +0.09 at K=16 (`PROOF.md §2.3`), still 4–7× below the open channel at every K,
+and explained there rather than only reported. The funding-graph residual (§4) is
 untouched by profile matching and remains measured-open.
 
 ## 7. Retracted theses (v0.1) and the standalone decision

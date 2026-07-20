@@ -17,6 +17,7 @@ use serde::Serialize;
 use supersonic_dest_harness::{
     classifiers::DestClassifier,
     eval::{best_attack, score, wilson_ci},
+    forest::ForestAdversary,
     learned::LearnedAdversary,
     load_study,
     pool::{PoolMember, ProfileModel, WarmingPool},
@@ -61,6 +62,10 @@ struct KRow {
     /// against more than the best single classifier.
     learned_open_advantage: f64,
     learned_defended_advantage: f64,
+    /// Nonlinear ensemble (randomized-tree forest, same 4 features) — the robustness
+    /// check against a hypothesis class the linear learned adversary cannot express.
+    forest_open_advantage: f64,
+    forest_defended_advantage: f64,
 }
 
 #[derive(Serialize)]
@@ -130,6 +135,8 @@ fn main() -> Result<()> {
         // each channel, score on its test split.
         let learned_open = LearnedAdversary::fit(&open_tr).advantage(&open_te);
         let learned_defended = LearnedAdversary::fit(&def_tr).advantage(&def_te);
+        let forest_open = ForestAdversary::fit(&open_tr).advantage(&open_te);
+        let forest_defended = ForestAdversary::fit(&def_tr).advantage(&def_te);
 
         rows.push(KRow {
             k,
@@ -144,6 +151,8 @@ fn main() -> Result<()> {
             defended_best_attack: defended.classifier.name().to_string(),
             learned_open_advantage: learned_open,
             learned_defended_advantage: learned_defended,
+            forest_open_advantage: forest_open,
+            forest_defended_advantage: forest_defended,
         });
     }
 
@@ -210,6 +219,20 @@ fn main() -> Result<()> {
         "  The union attack cracks the open channel like the single `exists` bit, and the\n\
          matched pool closes it against the union too — the defense is not beating just one\n\
          classifier."
+    );
+
+    println!("\nNonlinear ensemble (randomized-tree forest, same 4 features, fit on train, scored on test):");
+    println!("  K | open  | defended");
+    println!("----+-------+----------");
+    for r in &report.rows {
+        println!(
+            " {:>2} | {:+.3} | {:+.3}",
+            r.k, r.forest_open_advantage, r.forest_defended_advantage
+        );
+    }
+    println!(
+        "  A different hypothesis class than the linear learned adversary — same open/\n\
+         defended pattern, so the closure is not an artifact of testing only linear attacks."
     );
 
     println!(

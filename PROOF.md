@@ -126,6 +126,47 @@ amount-channel floor (+0.012). The test asserts every one of the 40 stays under 
 ceiling; a regression that reopens the channel on some seeds but not others would fail
 here even if `--seed 1` still looked closed.
 
+### 2.3 A nonlinear ensemble finds more — and why that's expected here
+
+The learned adversary in §2.1 is linear: one direction through the standardized
+features. A nonlinear ensemble (`dest-harness/src/forest.rs` — randomized-tree forest,
+extra-trees-style random cut points, bagged like a random forest, 100 trees, depth 3,
+built from scratch) can express interactions a linear model can't, so it's the next
+robustness question: is the closure specific to attacks that happen to be linear?
+
+```
+$ cargo run -p supersonic-dest-harness --release --bin dest-advantage -- \
+      --study data/dest_study.jsonl --n 8000 --seed 1
+```
+
+| K | forest, open | forest, defended | (learned, defended) |
+|---|---|---|---|
+| 2  | +0.317 | **+0.073** | +0.025 |
+| 4  | +0.476 | **+0.081** | +0.026 |
+| 8  | +0.550 | **+0.073** | +0.012 |
+| 16 | +0.598 | **+0.091** | +0.009 |
+
+The forest's defended residual (~0.07–0.09) is real, larger than the linear model's, and
+worth explaining rather than rounding away. Swept `MAX_DEPTH` at fixed `n` to find out
+why (K=16): **depth 2 → +0.047, depth 3 (shipped) → +0.091, depth 4 → +0.134, depth 6 →
++0.255** — residual climbs *with* tree depth, past the point (depth ≈ 2, since there are
+only 4 features) where depth already covers every feature interaction there is. A
+genuine distributional gap would saturate once depth captures the joint structure;
+climbing well past that is the signature of **memorizing individual points**, not
+learning one. The mechanism: the "real" legs are resampled *with replacement* from the
+same fixed ~590-row test split for both fitting and evaluating the forest (so does every
+other adversary in this file — the difference is capacity to exploit it), so a deep
+enough tree can carve a leaf around one specific, previously-seen mainnet address rather
+than around a distributional region. `MAX_DEPTH = 3` is shipped as the conservative
+choice — deep enough to be a real nonlinear ensemble, shallow enough that the residual
+isn't dominated by re-identifying known rows. `forest_residual_stays_in_the_documented_range`
+pins the shipped depth's residual inside `(0, 0.15)` in CI.
+
+Either way, the qualitative closure holds: **4–7× below the open channel** at every K,
+against a hypothesis class the linear adversary cannot express. The honest number is the
+larger one, not the flattering one — the linear +0.009 alone would have overstated how
+closed K=16 is against every attacker, not just linear ones.
+
 ## 3. The defense fails closed — it is not a silent degradation
 
 `supersonic-sdk::plan_bundle` refuses to emit a leaking bundle. Two refusal paths,
@@ -195,12 +236,12 @@ on chain with `SelfDestination` (Error 6004) before anything moved.
 ```
 $ cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml   # e2e loads this .so
 $ cargo test --workspace
-    ... 58 passed; 0 failed
+    ... 67 passed; 0 failed
 ```
 
 Six crates: `programs/supersonic-tx` (router), `supersonic-sdk` (amount + destination
 layers), `supersonic-cli` (CLI), `dest-harness` (measurement), `e2e` (on-chain proof),
-`composability-demo` (independent caller, `COMPOSABILITY.md`). The 58 cover the amount layer's exchangeability, the destination pool's fail-closed
+`composability-demo` (independent caller, `COMPOSABILITY.md`). The 67 cover the amount layer's exchangeability, the destination pool's fail-closed
 selection, the multi-seed robustness of the published closure (§2.2), **every program
 invariant** (`e2e/tests/program_invariants.rs` — each `SupersonicError` and
 later-leg-revert atomicity), the SDK→program seam, and the CLI's input parsing.
@@ -258,3 +299,28 @@ case — only decoys funded by unlinkable third parties (a crowd) can, the inter
 is specified in `CHANNELS.md §5.1`. A full-population figure that resolves the transient accounts' wallet
 funders needs per-account-type tracing (or an archival RPC); it would *lower* the average,
 not raise the P2P-payee number.
+
+## 7. Compute cost — real CU-vs-K curve, against the deployed program
+
+More decoys means a cheaper anonymity set per §2, but also a bigger transaction. Measured
+against the same `.so` §4 loads into LiteSVM (`compute_units_consumed` on every
+`send_transaction` result — no extra dependency for this measurement):
+
+```
+$ cargo test -p supersonic-e2e --test cu_benchmark -- --nocapture
+```
+
+| K | compute units | headroom vs the 1,400,000 tx ceiling |
+|---|---|---|
+| 2  | 5,551  | 99.6% |
+| 4  | 10,043 | 99.3% |
+| 8  | 19,027 | 98.6% |
+| 12 | 28,011 | 98.0% |
+| 16 | 36,995 | 97.4% |
+
+Growth is close to linear — roughly 2,250 CU per extra leg (one SPL system transfer plus
+its accounting) — not the accelerating curve a naive per-leg validation pass could produce.
+Even at K=16, the bundle uses **2.6% of the compute budget**; the account-lock cap
+(`DESIGN.md §7`, `MAX_TX_ACCOUNT_LOCKS = 64` → real K_max ≈ 2 with a Jupiter swap sharing
+the tx) binds long before compute does for a transfer-only bundle. `cu_scales_safely_with_k`
+pins both the ceiling and the roughly-linear growth in CI.

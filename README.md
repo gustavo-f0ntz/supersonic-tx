@@ -47,7 +47,7 @@ composability-demo       independent binary, SDK-only dependency, real devnet pr
 # 1. build the program artifact the e2e tests load by path (needs the Solana toolchain)
 cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
 
-# 2. everything, one command — 58 tests across all six crates
+# 2. everything, one command — 67 tests across all six crates
 cargo test --workspace
 #   (step 1 is required first: the 8 e2e tests load the .so and fail loudly,
 #    with a "run cargo build-sbf" message, if it isn't built)
@@ -89,9 +89,10 @@ enough to be safe — and refuses when it isn't.
 
 ## What it does not claim
 
-The defense closes the destination-history channel to a measured floor (~+0.01 at K=16, via
-the deployed selection path, the same order as PR #1's amount-channel floor). It does
-**not** close funding provenance:
+The defense closes the destination-history channel to a measured floor (~+0.01 at K=16
+against the best linear attack, via the deployed selection path, the same order as PR
+#1's amount-channel floor; +0.09 against a nonlinear ensemble — still 4–7× below the open
+channel, explained in `PROOF.md §2.3`). It does **not** close funding provenance:
 a decoy funded by the signer re-links one hop out, so a third-party-funded real payee still
 stands out. We measured it — for durable P2P payees, **86.5% are third-party-funded, a
 residual of +0.27–0.51** (`PROOF.md §6`) that no self-funded decoy scheme can close; only
