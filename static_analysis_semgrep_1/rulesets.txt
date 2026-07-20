@@ -1,0 +1,11 @@
+# Semgrep Scan — Approved Rulesets
+# Generated: 2026-07-20
+# Scan mode: run-all
+# Target: /home/f0ntz/Documents/Superteam-RUST-Desafios/bounty-noise/supersonic-tx
+
+## Rulesets:
+p/security-audit
+p/secrets
+p/rust
+p/github-actions
+https://github.com/Decurity/semgrep-smart-contracts

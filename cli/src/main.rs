@@ -436,8 +436,15 @@ fn representative_target(index: u32) -> DestProfile {
 /// Parse a 64-hex-char (32-byte) master seed.
 fn parse_seed(s: &str) -> Result<[u8; 32]> {
     let s = s.strip_prefix("0x").unwrap_or(s);
-    if s.len() != 64 {
-        bail!("seed must be 64 hex chars (32 bytes), got {}", s.len());
+    // Check ASCII before byte-slicing: `s.len()` counts bytes, not chars, so a non-ASCII
+    // string could pass a bare length check while its multi-byte chars misalign the fixed
+    // byte offsets below — `&s[2*i..2*i+2]` panics on a str sliced off a char boundary.
+    // Rejecting non-ASCII input up front makes every byte offset a valid char boundary.
+    if !s.is_ascii() || s.len() != 64 {
+        bail!(
+            "seed must be 64 hex chars (32 bytes), got {}",
+            s.chars().count()
+        );
     }
     let mut out = [0u8; 32];
     for (i, byte) in out.iter_mut().enumerate() {
@@ -470,6 +477,24 @@ mod tests {
         );
         // Right length, but 'z' is not hex — a trust-boundary reject, not a silent 0.
         assert!(parse_seed(&"z".repeat(64)).is_err(), "non-hex must fail");
+    }
+
+    #[test]
+    fn parse_seed_rejects_multibyte_utf8_instead_of_panicking() {
+        // "€" + 61 ASCII chars is 64 *bytes* (passes a bare byte-length check) but the
+        // 3-byte "€" misaligns every fixed 2-byte offset after it — `&s[2*i..2*i+2]`
+        // would panic mid-character instead of returning a clean error. This is the
+        // exact string that reproduced the panic before the `is_ascii()` guard.
+        let s = format!("\u{20AC}{}", "a".repeat(61));
+        assert_eq!(
+            s.len(),
+            64,
+            "fixture must be 64 bytes to exercise the old bug"
+        );
+        assert!(
+            parse_seed(&s).is_err(),
+            "non-ASCII input must be rejected, not panic"
+        );
     }
 
     #[test]
