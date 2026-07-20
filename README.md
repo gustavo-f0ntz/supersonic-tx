@@ -47,7 +47,7 @@ composability-demo       independent binary, SDK-only dependency, real devnet pr
 # 1. build the program artifact the e2e tests load by path (needs the Solana toolchain)
 cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
 
-# 2. everything, one command — 67 tests across all six crates
+# 2. everything, one command — 68 tests across all six crates
 cargo test --workspace
 #   (step 1 is required first: the 8 e2e tests load the .so and fail loudly,
 #    with a "run cargo build-sbf" message, if it isn't built)

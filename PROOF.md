@@ -236,12 +236,12 @@ on chain with `SelfDestination` (Error 6004) before anything moved.
 ```
 $ cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml   # e2e loads this .so
 $ cargo test --workspace
-    ... 67 passed; 0 failed
+    ... 68 passed; 0 failed
 ```
 
 Six crates: `programs/supersonic-tx` (router), `supersonic-sdk` (amount + destination
 layers), `supersonic-cli` (CLI), `dest-harness` (measurement), `e2e` (on-chain proof),
-`composability-demo` (independent caller, `COMPOSABILITY.md`). The 67 cover the amount layer's exchangeability, the destination pool's fail-closed
+`composability-demo` (independent caller, `COMPOSABILITY.md`). The 68 cover the amount layer's exchangeability, the destination pool's fail-closed
 selection, the multi-seed robustness of the published closure (§2.2), **every program
 invariant** (`e2e/tests/program_invariants.rs` — each `SupersonicError` and
 later-leg-revert atomicity), the SDK→program seam, and the CLI's input parsing.
