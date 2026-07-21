@@ -35,6 +35,7 @@ pub mod funding;
 pub mod learned;
 pub mod pool;
 pub mod profile;
+pub mod tokens;
 
 use rand::seq::SliceRandom;
 use rand::Rng;

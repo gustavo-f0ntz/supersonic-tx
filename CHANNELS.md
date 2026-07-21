@@ -34,6 +34,7 @@ real leg in *every* observable channel, not just one.
 | **Destination — age / txcount / recency** | profile of prior activity | **Closed** — same warmed-pool matching | all classifiers +0.601 open → ~+0.01 defended |
 | **Atomicity / partial landing** | did only some legs settle? | **Closed** (program invariant I3) | `underfunded_sdk_bundle_reverts_atomically` (`PROOF.md §4`) |
 | **Destination — funding provenance** | does the decoy's funding trace to the signer? | **OPEN — measured +0.27…+0.51 for durable P2P payees (most destinations are self-funded plumbing decoys already match); not solvable by self-funded decoys** | §5 below |
+| **Destination — token holdings** | does the leg's address hold any SPL token account? | **OPEN — measured +0.05…+0.09; a SOL-only warming scheme can't hold tokens by construction** | §5.2 below |
 | **Timing / co-signing / same-tx correlation** | all legs share one tx and signer | Inherent to the construction; out of scope | §7 |
 
 ### 3.1 Amount channel — table stakes, credited
@@ -119,6 +120,38 @@ misdirected funds). A complementary source of externally-funded, plausibly-aged 
 would slot in here; supplying that source is a separate problem from the one this tool
 solves.
 
+### 5.2 A second residual, found by looking for more: token holdings
+
+The funding residual isn't the only thing a SOL-only warming scheme misses. A pool
+member is aged **exclusively** by `WarmingPool` moving lamports to it — it never touches
+the SPL Token program, so it holds **zero token accounts, always**. A real payee is
+under no such constraint.
+
+**Measured** (`data/token_holdings.jsonl`, `getTokenAccountsByOwner` against the classic
+SPL Token program for the same 749 history-having destinations `dest_study.jsonl`
+tracks; Token-2022 not queried — a scope limit stated, not hidden): **111/749 = 14.8%**
+of history payees hold ≥1 token account (95% CI 12.5–17.5%), i.e. **9.4%** over the full
+1181-destination population. Same shape as every other channel here — a decoy is always
+the "no tokens" case, so the attack reads off the unique leg that holds tokens when the
+real one does, and falls back to `1/K` when it doesn't:
+
+```
+$ cargo run -p supersonic-dest-harness --bin token-residual -- \
+      --tokens data/token_holdings.jsonl --study data/dest_study.jsonl
+
+  K | residual advantage | 95% CI
+  2 |        +0.047       | [+0.039, +0.056]
+  4 |        +0.070       | [+0.059, +0.083]
+  8 |        +0.082       | [+0.069, +0.097]
+ 16 |        +0.088       | [+0.074, +0.104]
+```
+
+Smaller than the funding residual, but real, and it closes the same way: decoys that
+also plausibly hold tokens — exactly what a real `account-cooker` casting swap/stake
+activity through decoy addresses (README's composability section) would supply as a
+side effect, not something this SOL-only scheme can synthesize alone. §5.1's crowd
+interface is the same interface this channel needs, not a second one.
+
 ## 6. Pre-inclusion (mempool) vs. post-hoc analysis
 
 Worth stating plainly, because the two threats are usually named together and on Solana
@@ -161,8 +194,11 @@ or reorder, and this construction does not defend against that.
 | Destination-history channel closed | **Yes — measured, +0.598 → ~+0.01 (linear) / +0.09 (nonlinear ensemble, worst case) at K=16, via the deployed select path** |
 | Bundle atomic & non-custodial | Yes — program invariants, e2e-proven |
 | Funding-graph provenance closed | **No — measured +0.27…+0.51 for durable P2P payees; requires an external crowd** |
+| Token-holdings channel closed | **No — measured +0.05…+0.09; requires the same crowd interface (§5.2)** |
 | Same-tx correlation hidden | No — out of scope by construction |
 | Composability (external caller) | Yes — a separate binary depending only on the published SDK, real devnet tx (`COMPOSABILITY.md`) |
 
-The contribution is the middle two rows measured, and the fourth row **measured and scoped
-honestly** — a real residual for P2P payees, not papered over.
+The contribution is the destination-history and composability rows closed, and the two
+residual rows **measured and scoped honestly** rather than papered over or left as
+prose — both point at the same missing piece, the external crowd §5.1 defines the
+interface for.

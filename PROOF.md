@@ -236,12 +236,12 @@ on chain with `SelfDestination` (Error 6004) before anything moved.
 ```
 $ cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml   # e2e loads this .so
 $ cargo test --workspace
-    ... 68 passed; 0 failed
+    ... 71 passed; 0 failed
 ```
 
 Six crates: `programs/supersonic-tx` (router), `supersonic-sdk` (amount + destination
 layers), `supersonic-cli` (CLI), `dest-harness` (measurement), `e2e` (on-chain proof),
-`composability-demo` (independent caller, `COMPOSABILITY.md`). The 68 cover the amount layer's exchangeability, the destination pool's fail-closed
+`composability-demo` (independent caller, `COMPOSABILITY.md`). The 71 cover the amount layer's exchangeability, the destination pool's fail-closed
 selection, the multi-seed robustness of the published closure (§2.2), **every program
 invariant** (`e2e/tests/program_invariants.rs` — each `SupersonicError` and
 later-leg-revert atomicity), the SDK→program seam, and the CLI's input parsing.
@@ -299,6 +299,34 @@ case — only decoys funded by unlinkable third parties (a crowd) can, the inter
 is specified in `CHANNELS.md §5.1`. A full-population figure that resolves the transient accounts' wallet
 funders needs per-account-type tracing (or an archival RPC); it would *lower* the average,
 not raise the P2P-payee number.
+
+### 6.1 A second residual: token holdings
+
+Looked for another gap the same way: `WarmingPool` ages a member with System-program
+transfers only, so a pool member holds **zero SPL token accounts, always**. Queried
+`getTokenAccountsByOwner` (classic SPL Token program; Token-2022 not queried) for the
+same 749 history-having destinations `dest_study.jsonl` tracks:
+
+```
+$ cargo run -p supersonic-dest-harness --bin token-residual -- \
+      --tokens data/token_holdings.jsonl --study data/dest_study.jsonl
+
+  Resolved 749/749 history-having destinations (0 RPC failures).
+  Hold >=1 classic-SPL-Token account: 111/749 = 14.8% (95% CI 12.5%-17.5%)
+  => P(a real leg holds a token account), over the full 1181 population: 9.4%
+
+  K |  residual  | 95% CI
+  2 |   +0.047   | [+0.039, +0.056]
+  8 |   +0.082   | [+0.069, +0.097]
+ 16 |   +0.088   | [+0.074, +0.104]
+```
+
+Same shape as the funding residual and the same fix: decoys that also plausibly hold
+tokens, which is what a real `account-cooker` integration supplies as a side effect of
+casting swap/stake activity through decoy addresses (`CHANNELS.md §5.1`'s crowd
+interface, not a second one). Smaller than the funding residual (+0.05…+0.09 vs.
++0.27…+0.51) but real, and found the same way every number in this file was: measured,
+not assumed.
 
 ## 7. Compute cost — real CU-vs-K curve, against the deployed program
 

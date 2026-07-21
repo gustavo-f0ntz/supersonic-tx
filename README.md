@@ -80,7 +80,7 @@ composability-demo       independent binary, SDK-only dependency, real devnet pr
 # 1. build the program artifact the e2e tests load by path (needs the Solana toolchain)
 cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
 
-# 2. everything, one command — 68 tests across all six crates
+# 2. everything, one command — 71 tests across all six crates
 cargo test --workspace
 #   (step 1 is required first: the 8 e2e tests load the .so and fail loudly,
 #    with a "run cargo build-sbf" message, if it isn't built)
@@ -131,8 +131,10 @@ stands out. We measured it — for durable P2P payees, **86.5% are third-party-f
 residual of +0.27–0.51** (`PROOF.md §6`) that no self-funded decoy scheme can close; only
 decoys funded by unlinkable third parties (a crowd) can. (Most *raw* transfer destinations,
 though, turn out to be self-funded transient token accounts a decoy already matches — the
-residual is a property of who you actually pay, not the transfer population at large.) See
-[CHANNELS.md §5](CHANNELS.md).
+residual is a property of who you actually pay, not the transfer population at large.) A
+second, smaller residual has the same fix: **9.4% of real payees hold an SPL token
+account a SOL-only warming scheme never will**, +0.05–0.09 (`CHANNELS.md §5.2`). Both
+residuals point at the same missing piece — see [CHANNELS.md §5](CHANNELS.md).
 
 **Deployed on devnet** — [program `D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be`](https://explorer.solana.com/address/D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be?cluster=devnet),
 with a real CLI-planned bundle settled on chain ([tx](https://explorer.solana.com/tx/5zd9D1V51Grjjm9tB38jimgdAHwAb3n5s4gqgwYUQgx5FMoygJpKKkEhVciZCNGS56NVxZJKNDsq65ADw8GtojjR?cluster=devnet), status Ok). See [PROOF.md §4.1](PROOF.md).
