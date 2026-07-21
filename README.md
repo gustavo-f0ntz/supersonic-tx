@@ -21,6 +21,39 @@ pre-warmed decoy pool whose history profile is drawn from the same distribution 
 payees, fails closed when it can't match, and **measures** the residual it cannot close (the
 funding graph). It is the 2017→2018 Monero decoy-selection lesson, ported to Solana.
 
+## How a bundle gets built
+
+```mermaid
+flowchart TD
+    subgraph caller["Caller (CLI, or any tool via the SDK)"]
+        intent["real_dest + real_amount"]
+    end
+
+    subgraph sdk["supersonic-sdk :: plan_bundle"]
+        amt["Amount layer<br/>real is one draw from the<br/>bundle's own log-normal<br/>(credited to PR #1)"]
+        pool["Destination layer<br/>WarmingPool::select<br/>K-1 decoys reproducing the<br/>real-payee profile distribution"]
+        closed{"pool warm & representative?"}
+        refuse["REFUSE — PoolTooCold /<br/>PoolNotRepresentative<br/>(fail closed, no leaking bundle)"]
+        shuffle["shuffle real leg into a<br/>seed-determined random position"]
+    end
+
+    ix["build_instruction<br/>(plain solana_sdk Instruction)"]
+    prog["programs/supersonic-tx :: execute_bundle<br/>K writable, non-signer, identically-shaped legs"]
+    settle["All K legs settle atomically,<br/>or none do (I3)"]
+
+    intent --> amt
+    intent --> pool
+    pool --> closed
+    closed -->|no| refuse
+    closed -->|yes| shuffle
+    amt --> shuffle
+    shuffle --> ix --> prog --> settle
+```
+
+An on-chain observer sees `settle`'s K legs — same instruction shape, same account
+role, amounts and destinations each drawn from one indistinguishable distribution
+(`CHANNELS.md §3`) — and cannot tell which one was `intent`.
+
 ## Read in this order
 
 1. **[DESIGN.md](DESIGN.md)** — the thesis, the measurement, the defense, and where it stops.
