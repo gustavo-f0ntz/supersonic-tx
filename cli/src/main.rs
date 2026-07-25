@@ -4,6 +4,10 @@
 //!
 //! * `warm` — derive the pool's decoy addresses from your seed and record them, so you
 //!   can fund and age them into a matched history profile.
+//! * `refresh` — re-check pool members against real on-chain state
+//!   (`getSignaturesForAddress`), replacing a locally-asserted `current` profile with
+//!   what's actually observed. `warm --mature` fakes maturity for a demo; `refresh`
+//!   verifies it for real, against the same call an attacker would make.
 //! * `plan` — turn one real transfer into an intent-ambiguous bundle drawn from the
 //!   warmed pool. **Fails closed** (non-zero exit) if the pool is too cold.
 //! * `inspect` — show exactly what an on-chain observer sees for a planned bundle.
@@ -11,7 +15,10 @@
 //! * `send` — plan and submit to an RPC. **Simulates by default**; `--broadcast` to
 //!   actually move funds. The program must be deployed on the target cluster.
 //!
-//! `warm`/`plan`/`inspect`/`recover` are fully offline; only `send` touches the network.
+//! `warm`/`plan`/`inspect`/`recover` are fully offline; `refresh` and `send` are the only
+//! commands that touch the network — and `refresh` only ever reads.
+
+mod refresh;
 
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -63,6 +70,20 @@ enum Cmd {
         /// mainnet maturity accrues over real time as you exercise the addresses).
         #[arg(long)]
         mature: bool,
+    },
+    /// Re-check pool members against real on-chain state and update `current` from what
+    /// `getSignaturesForAddress` actually reports. Read-only — moves no funds.
+    Refresh {
+        #[arg(long)]
+        seed: String,
+        #[arg(long, default_value = "pool.json")]
+        pool: PathBuf,
+        #[arg(long)]
+        rpc: String,
+        /// Signature pages (1000 each) to walk back per member. Hitting the cap makes
+        /// that member's count a lower bound, not exhaustive — printed as such.
+        #[arg(long, default_value_t = 5)]
+        max_pages: usize,
     },
     /// Plan an intent-ambiguous bundle for one real transfer.
     Plan {
@@ -156,6 +177,12 @@ fn main() -> Result<()> {
             out,
             mature,
         } => warm(&seed, count, &out, mature),
+        Cmd::Refresh {
+            seed,
+            pool,
+            rpc,
+            max_pages,
+        } => refresh_pool(&seed, &pool, &rpc, max_pages),
         Cmd::Plan {
             seed,
             pool,
@@ -326,6 +353,43 @@ fn warm(seed: &str, count: u32, out: &std::path::Path, mature: bool) -> Result<(
     if !mature {
         println!("(members start immature; fund+exercise them, then re-warm with --mature to plan on localnet)");
     }
+    Ok(())
+}
+
+/// Re-check every pool member's `current` profile against real chain state, replacing
+/// whatever `warm` last asserted with what `getSignaturesForAddress` actually reports.
+/// Read-only: no transaction is built or sent.
+fn refresh_pool(
+    seed: &str,
+    pool_path: &std::path::Path,
+    rpc_url: &str,
+    max_pages: usize,
+) -> Result<()> {
+    let seed = Zeroizing::new(parse_seed(seed)?);
+    let raw = std::fs::read_to_string(pool_path)
+        .with_context(|| format!("reading pool {}", pool_path.display()))?;
+    let mut file: PoolFile = serde_json::from_str(&raw).context("parsing pool file")?;
+    let client = RpcClient::new(rpc_url.to_string());
+
+    for m in &mut file.members {
+        let pk = derive_pool_keypair(&seed, m.index).pubkey();
+        let was_eligible = m.is_eligible();
+        m.current = refresh::fetch_profile(&client, &pk, max_pages)
+            .with_context(|| format!("refreshing member {} ({pk})", m.index))?;
+        println!(
+            "  [{:>3}] {pk}  sigs={:<5} eligible: {was_eligible} -> {}",
+            m.index,
+            m.current.prior_sigs,
+            m.is_eligible()
+        );
+    }
+
+    let json = serde_json::to_string_pretty(&file)?;
+    std::fs::write(pool_path, json).with_context(|| format!("writing {}", pool_path.display()))?;
+    println!(
+        "pool state refreshed against real chain data -> {}",
+        pool_path.display()
+    );
     Ok(())
 }
 

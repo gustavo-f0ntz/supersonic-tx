@@ -62,6 +62,13 @@ reproduce the fresh/history split within `FRESH_SHARE_TOL = 0.15`). Privacy has 
 time — an aged pool had to be warmed months ago — and a user with no warmed pool is told
 no, not silently degraded.
 
+That fail-closed check is only as honest as the `current` profile it reads. `warm` alone
+never touches the network — `--mature` fakes maturity for a demo, and otherwise `current`
+is whatever it was last set to, with nothing re-checking it against reality.
+`supersonic refresh` closes that: it re-queries `getSignaturesForAddress` for every pool
+member and overwrites `current` with what's actually observed, so eligibility is checked
+against the chain, not a locally-asserted flag (`AUDIT.md`).
+
 ## 4. Program invariants (trust boundary)
 
 - **I1 Non-custodial** — every leg moves the signer's own lamports to a destination the

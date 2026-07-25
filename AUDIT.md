@@ -85,6 +85,16 @@ the seed/digest side, not the final signing-key bytes.
   this project's own `Cargo.toml` selects — not fixable without Solana Labs bumping their
   own internal pins. Same finding class the PR #1 competitor documented for their stack.
 
+## Hardening beyond the checklist
+
+Walking the `warm` lifecycle for this pass surfaced something no checklist item names
+directly: `warm` never touches the network, so `current` is either an artificial demo
+flag (`--mature`) or whatever was last written — nothing re-checks it against reality
+before `WarmingPool::select` trusts it for a fail-closed decision. Added `supersonic
+refresh`: read-only, re-queries `getSignaturesForAddress` per member and overwrites
+`current` with what's actually observed (`cli/src/refresh.rs`), so the fail-closed
+guarantee is checked against the chain, not a self-reported flag. See `CHANNELS.md §3.2`.
+
 ## What this pass did not re-litigate
 
 The funding-graph residual (86.5% third-party-funded among durable payees, +0.27…+0.51)

@@ -81,7 +81,7 @@ composability-demo       independent binary, SDK-only dependency, real devnet pr
 # 1. build the program artifact the e2e tests load by path (needs the Solana toolchain)
 cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
 
-# 2. everything, one command — 73 tests across all six crates
+# 2. everything, one command — 76 tests across all six crates
 cargo test --workspace
 #   (step 1 is required first: the 8 e2e tests load the .so and fail loudly,
 #    with a "run cargo build-sbf" message, if it isn't built)
@@ -91,7 +91,8 @@ cd dest-harness
 cargo run -p supersonic-dest-harness --bin dest-advantage -- \
     --study data/dest_study.jsonl --n 8000 --seed 1
 
-# the CLI (warm/plan/inspect/recover are offline; send simulates unless --broadcast)
+# the CLI (warm/plan/inspect/recover are offline; refresh reads real chain state to
+# verify maturity instead of trusting a local flag; send simulates unless --broadcast)
 cargo run -p supersonic-cli -- --help
 ```
 
