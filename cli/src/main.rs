@@ -29,6 +29,7 @@ use supersonic_sdk::{
     build_instruction, derive_pool_keypair, derive_sink_keypair, plan_bundle, BundlePlan,
     DecoyConfig, DestProfile, PoolMember, ProfileModel, WarmingPool,
 };
+use zeroize::Zeroizing;
 
 /// The deployed program id (matches `declare_id!` and `PROGRAM_ID.txt`). The program must
 /// be deployed on the cluster `--rpc` points at — localnet/devnet in practice.
@@ -78,9 +79,12 @@ enum Cmd {
         /// Anonymity-set size (total legs incl. the real one), 2..=16.
         #[arg(long)]
         k: usize,
-        /// Per-bundle nonce.
-        #[arg(long, default_value_t = 1)]
-        bundle_id: u64,
+        /// Per-bundle nonce. Determines the decoy set for a given seed — reusing one across
+        /// distinct real transfers reuses the same decoys and lets an observer spot the real
+        /// leg as "whichever address changed". Omit it: a fresh one is generated per run.
+        /// Only pass it explicitly to reproduce a specific past plan (retry/recovery).
+        #[arg(long)]
+        bundle_id: Option<u64>,
         /// Optionally write the observer-view plan for `inspect`.
         #[arg(long)]
         out: Option<PathBuf>,
@@ -113,8 +117,9 @@ enum Cmd {
         amount: u64,
         #[arg(long)]
         k: usize,
-        #[arg(long, default_value_t = 1)]
-        bundle_id: u64,
+        /// Per-bundle nonce. See `plan`'s `--bundle-id` doc — same reuse hazard, same default.
+        #[arg(long)]
+        bundle_id: Option<u64>,
         /// The funding signer's keypair file (the wallet that pays every leg).
         #[arg(long)]
         keypair: PathBuf,
@@ -159,7 +164,15 @@ fn main() -> Result<()> {
             k,
             bundle_id,
             out,
-        } => plan(&seed, &pool, &to, amount, k, bundle_id, out.as_deref()),
+        } => plan(
+            &seed,
+            &pool,
+            &to,
+            amount,
+            k,
+            resolve_bundle_id(bundle_id),
+            out.as_deref(),
+        ),
         Cmd::Inspect { plan } => inspect(&plan),
         Cmd::Recover { seed, pool } => recover(&seed, &pool),
         Cmd::Send {
@@ -173,7 +186,15 @@ fn main() -> Result<()> {
             rpc,
             broadcast,
         } => send(
-            &seed, &pool, &to, amount, k, bundle_id, &keypair, &rpc, broadcast,
+            &seed,
+            &pool,
+            &to,
+            amount,
+            k,
+            resolve_bundle_id(bundle_id),
+            &keypair,
+            &rpc,
+            broadcast,
         ),
     }
 }
@@ -202,7 +223,7 @@ fn send(
     rpc_url: &str,
     broadcast: bool,
 ) -> Result<()> {
-    let seed = parse_seed(seed)?;
+    let seed = Zeroizing::new(parse_seed(seed)?);
     let real_dest = Pubkey::from_str(to).with_context(|| format!("bad --to pubkey: {to}"))?;
     let pool = load_pool(pool_path)?;
     let program_id = Pubkey::from_str(PROGRAM_ID).expect("valid program id");
@@ -278,7 +299,7 @@ fn send(
 }
 
 fn warm(seed: &str, count: u32, out: &std::path::Path, mature: bool) -> Result<()> {
-    let seed = parse_seed(seed)?;
+    let seed = Zeroizing::new(parse_seed(seed)?);
     let members: Vec<PoolMember> = (0..count)
         .map(|index| {
             let target = representative_target(index);
@@ -317,7 +338,7 @@ fn plan(
     bundle_id: u64,
     out: Option<&std::path::Path>,
 ) -> Result<()> {
-    let seed = parse_seed(seed)?;
+    let seed = Zeroizing::new(parse_seed(seed)?);
     let real_dest = Pubkey::from_str(to).with_context(|| format!("bad --to pubkey: {to}"))?;
     let pool = load_pool(pool_path)?;
 
@@ -389,7 +410,7 @@ fn inspect(plan_path: &std::path::Path) -> Result<()> {
 }
 
 fn recover(seed: &str, pool_path: &std::path::Path) -> Result<()> {
-    let seed = parse_seed(seed)?;
+    let seed = Zeroizing::new(parse_seed(seed)?);
     let pool = load_pool(pool_path)?;
     println!("recovery addresses (sweep each pool member's parked funds to its sink):");
     for m in &pool.members {
@@ -433,6 +454,14 @@ fn representative_target(index: u32) -> DestProfile {
     DestProfile::observed(sigs, Some(age), Some(recency))
 }
 
+/// Resolve `--bundle-id`: an explicit value passes through unchanged (reproduces a past
+/// plan for retry/recovery); omitted, a fresh random id is generated so two invocations
+/// without the flag never collide on the same decoy set (see `Plan::bundle_id` doc — a
+/// fixed default here was the bug: every un-flagged bundle reused the same decoys).
+fn resolve_bundle_id(explicit: Option<u64>) -> u64 {
+    explicit.unwrap_or_else(rand::random)
+}
+
 /// Parse a 64-hex-char (32-byte) master seed.
 fn parse_seed(s: &str) -> Result<[u8; 32]> {
     let s = s.strip_prefix("0x").unwrap_or(s);
@@ -457,6 +486,26 @@ fn parse_seed(s: &str) -> Result<[u8; 32]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resolve_bundle_id_passes_explicit_value_through() {
+        assert_eq!(resolve_bundle_id(Some(42)), 42);
+    }
+
+    #[test]
+    fn resolve_bundle_id_does_not_default_to_a_constant() {
+        // Regression guard for the reuse bug: an un-flagged `plan`/`send` used to always
+        // get bundle_id=1, so every bundle from a given seed drew the identical decoy set
+        // and an observer could spot the real leg as "whichever address changed". 200
+        // draws colliding would need astronomical luck against a real `u64` RNG — this
+        // fails immediately if the default is ever hardcoded back to a fixed value.
+        let ids: std::collections::HashSet<u64> =
+            (0..200).map(|_| resolve_bundle_id(None)).collect();
+        assert!(
+            ids.len() > 1,
+            "omitted --bundle-id must not resolve to a constant"
+        );
+    }
 
     #[test]
     fn parse_seed_accepts_64_hex_with_or_without_prefix() {

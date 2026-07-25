@@ -92,6 +92,7 @@ use solana_sdk::{
     signer::Signer,
     system_program,
 };
+use zeroize::Zeroizing;
 
 pub mod amounts;
 pub mod pool;
@@ -186,8 +187,8 @@ fn bundle_rng(master_seed: &[u8; 32], bundle_id: u64) -> ChaCha20Rng {
     h.update(KDF_RNG);
     h.update(master_seed);
     h.update(bundle_id.to_le_bytes());
-    let seed: [u8; 32] = h.finalize().into();
-    ChaCha20Rng::from_seed(seed)
+    let digest: Zeroizing<[u8; 32]> = Zeroizing::new(h.finalize().into());
+    ChaCha20Rng::from_seed(*digest)
 }
 
 /// Derive the keypair for pool member `index`. Deterministic in the master seed, so the
@@ -201,8 +202,8 @@ pub fn derive_pool_keypair(master_seed: &[u8; 32], index: u32) -> Keypair {
     h.update(KDF_POOL);
     h.update(master_seed);
     h.update(index.to_le_bytes());
-    let seed: [u8; 32] = h.finalize().into();
-    keypair_from_seed(&seed).expect("32-byte seed is valid")
+    let digest: Zeroizing<[u8; 32]> = Zeroizing::new(h.finalize().into());
+    keypair_from_seed(&*digest).expect("32-byte seed is valid")
 }
 
 /// Derive a per-decoy **dispersal sink** — a distinct user-controlled address a decoy's
@@ -218,8 +219,8 @@ pub fn derive_sink_keypair(master_seed: &[u8; 32], index: u32) -> Keypair {
     h.update(KDF_SINK);
     h.update(master_seed);
     h.update(index.to_le_bytes());
-    let seed: [u8; 32] = h.finalize().into();
-    keypair_from_seed(&seed).expect("32-byte seed is valid")
+    let digest: Zeroizing<[u8; 32]> = Zeroizing::new(h.finalize().into());
+    keypair_from_seed(&*digest).expect("32-byte seed is valid")
 }
 
 /// Plan an intent-ambiguous, channel-complete bundle for a single real transfer.

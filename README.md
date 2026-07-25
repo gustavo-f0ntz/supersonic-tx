@@ -60,6 +60,7 @@ role, amounts and destinations each drawn from one indistinguishable distributio
 2. **[PROOF.md](PROOF.md)** — reproducible evidence: every number, one command each.
 3. **[CHANNELS.md](CHANNELS.md)** — channel-by-channel status, closed and open, and the crowd interface the open residual needs.
 4. **[COMPOSABILITY.md](COMPOSABILITY.md)** — an independent binary casting through the deployed router using only the published SDK, settled on real devnet.
+5. **[AUDIT.md](AUDIT.md)** — a self-run pass against `solanabr/auditor-skill`, the bounty org's own audit framework: one real high-severity finding (decoy-set reuse from a constant `--bundle-id` default) found and fixed, plus a KDF-zeroization hardening.
 
 ## Layout
 
@@ -80,7 +81,7 @@ composability-demo       independent binary, SDK-only dependency, real devnet pr
 # 1. build the program artifact the e2e tests load by path (needs the Solana toolchain)
 cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
 
-# 2. everything, one command — 71 tests across all six crates
+# 2. everything, one command — 73 tests across all six crates
 cargo test --workspace
 #   (step 1 is required first: the 8 e2e tests load the .so and fail loudly,
 #    with a "run cargo build-sbf" message, if it isn't built)

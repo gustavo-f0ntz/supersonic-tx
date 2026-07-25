@@ -6394,11 +6394,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "rand 0.8.7",
  "serde",
  "serde_json",
  "solana-client",
  "solana-sdk",
  "supersonic-sdk",
+ "zeroize",
 ]
 
 [[package]]
@@ -6433,6 +6435,7 @@ dependencies = [
  "serde",
  "sha2 0.10.9",
  "solana-sdk",
+ "zeroize",
 ]
 
 [[package]]
