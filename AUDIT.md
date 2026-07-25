@@ -77,8 +77,13 @@ the seed/digest side, not the final signing-key bytes.
   are wired to a non-zero exit in both `plan` and `send`, with no flag to bypass and build
   a bundle from a cold or unrepresentative pool anyway.
 - **Supply chain:** `Cargo.lock` is committed, 663 packages pinned; `anchor-lang 0.31.1`/
-  `solana-sdk 2.2` are current, not stale. `cargo audit` was not run in this pass (no
-  network access in the review environment) — worth one final run before submission.
+  `solana-sdk 2.2` are current, not stale. `cargo audit` (`RustSec` advisory DB, 1,169
+  advisories) found 5 real vulnerabilities and 11 unmaintained/unsound warnings — traced
+  each with `cargo tree -i` before writing this: all 5 (`curve25519-dalek` 3.2.0,
+  `ed25519-dalek` 1.0.1, `rustls-webpki` 0.101.7 ×3) come transitively through
+  `solana-keypair`/`solana-client`/`solana-sdk`'s own dependency choices, not anything
+  this project's own `Cargo.toml` selects — not fixable without Solana Labs bumping their
+  own internal pins. Same finding class the PR #1 competitor documented for their stack.
 
 ## What this pass did not re-litigate
 
