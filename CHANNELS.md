@@ -35,7 +35,8 @@ real leg in *every* observable channel, not just one.
 | **Atomicity / partial landing** | did only some legs settle? | **Closed** (program invariant I3) | `underfunded_sdk_bundle_reverts_atomically` (`PROOF.md §4`) |
 | **Destination — funding provenance** | does the decoy's funding trace to the signer? | **OPEN — measured +0.27…+0.51 for durable P2P payees (most destinations are self-funded plumbing decoys already match); not solvable by self-funded decoys** | §5 below |
 | **Destination — token holdings** | does the leg's address hold any SPL token account? | **OPEN — measured +0.05…+0.09; a SOL-only warming scheme can't hold tokens by construction** | §5.2 below |
-| **Timing / co-signing / same-tx correlation** | all legs share one tx and signer | Inherent to the construction; out of scope | §7 |
+| **Program identity** | did this signer ever invoke supersonic-tx at all? | **OPEN — measured live (1 real tx → 1 signer recovered, zero bundle access needed); closing it costs composability** | §7 below |
+| **Timing / co-signing / same-tx correlation** | all legs share one tx and signer | Inherent to the construction; out of scope | §8 |
 
 ### 3.1 Amount channel — table stakes, credited
 
@@ -182,7 +183,53 @@ that front-runs on early sight of the bundle. Ambiguity still holds against them
 read the same K indistinguishable legs everyone else does, just sooner — but they can drop
 or reorder, and this construction does not defend against that.
 
-## 7. Out of scope (named, not hidden)
+## 7. Program identity — a channel outside the K-anonymity model
+
+Every measurement above answers one question: *given a confirmed bundle, which leg is
+real?* There is a different, earlier question this system does not answer: **did this
+signer ever use supersonic-tx at all?**
+
+The program is deployed at one fixed, known address
+(`D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be`). `getSignaturesForAddress` on a
+*program* returns every transaction that ever invoked it — every signer who has ever
+cast a bundle through this deployment is enumerable by anyone, with **zero** access to
+any bundle's contents. This is categorically different from every channel in §3: it
+doesn't touch which leg is real, it identifies *that you use a privacy tool at all* —
+the same property that makes a deployed Tornado Cash-style mixer observable as "this
+wallet interacted with the mixer," independent of what it hid inside.
+
+**Measured, live** (`cli/src/bin/program_identity.rs`,
+`cargo run -p supersonic-cli --bin program-identity -- --rpc <url>`). Querying this
+project's own devnet deployment initially returned **0** historical signatures — not
+because nothing was ever sent (`README.md`/`PROOF.md` cite an earlier settled bundle),
+but because `api.devnet.solana.com`'s public indexer does not retain signature history
+indefinitely (the same shallow-index limitation already documented for mainnet RPCs in
+`PROOF.md §6`, here on devnet instead). Rather than assert the mechanism from a stale
+number, we cast one fresh bundle while writing this section
+(tx [`2iwXTRSUuQzLYK2VuMjn7itEftX62HgyGVRbYLppS8GEaULLPPZnRhsqEjKkAb36YnBUqjp3Cdx8KdQFJqC5GDsH`](https://explorer.solana.com/tx/2iwXTRSUuQzLYK2VuMjn7itEftX62HgyGVRbYLppS8GEaULLPPZnRhsqEjKkAb36YnBUqjp3Cdx8KdQFJqC5GDsH?cluster=devnet))
+and re-ran the query: **1 confirmed signature, 1 distinct signer**
+(`DumKvuUFpqXXh8CXU1HG7PDhADsfNwNXxKfSEBRzyAJL`) recovered with no knowledge of which of
+the bundle's 4 legs was real. On a program with sustained usage and a full-history
+indexer (mainnet, or an archival RPC), the same one-call query enumerates every signer
+who has ever used the tool.
+
+**Why this isn't closed, and can't be closed alone.** The bounty listing names the
+design-space trade-off directly: "either a single global program everyone routes
+through, or fresh programs deployed on demand for each use." A fresh program per bundle
+would close this channel — but it directly costs the **composability** requirement the
+same listing names (`COMPOSABILITY.md`): a fresh, unpredictable program address per use
+is not something a caller (a market maker's router, an `account-cooker` agent) can
+discover or integrate against without an out-of-band lookup service, and each deployment
+carries a real, non-recoverable-until-closed cost — **1.27 SOL** rent-exempt minimum for
+a program this size (`solana rent 182408`, this deployment's actual `.so`), paid again
+for every fresh instance. We chose one global program deliberately, for that reason, and
+are naming the resulting identity leak explicitly rather than leaving it undiscovered.
+Closing it without losing composability would need a *stable, discoverable* indirection
+layer (a router whose callers are the ones freshly deployed, or an on-chain registry) —
+a real, separate design problem, not a small patch, and out of scope for this
+submission's remaining time.
+
+## 8. Out of scope (named, not hidden)
 
 - **Same-tx correlation.** All K legs share one transaction and one fee-payer/signer. This
   is inherent to atomic bundling — the anonymity set is *within* the bundle, not across the
@@ -193,7 +240,7 @@ or reorder, and this construction does not defend against that.
 - **Off-chain intent leaks.** If the user reveals the real destination elsewhere, no
   on-chain construction helps.
 
-## 8. Summary
+## 9. Summary
 
 | Claim | Status |
 |---|---|
@@ -204,8 +251,9 @@ or reorder, and this construction does not defend against that.
 | Token-holdings channel closed | **No — measured +0.05…+0.09; requires the same crowd interface (§5.2)** |
 | Same-tx correlation hidden | No — out of scope by construction |
 | Composability (external caller) | Yes — a separate binary depending only on the published SDK, real devnet tx (`COMPOSABILITY.md`) |
+| Program-identity leak closed | **No — measured live (1 signer recovered from 1 real tx, zero access to bundle contents); a fresh-program-per-use design would close it but breaks composability (§7)** |
 
-The contribution is the destination-history and composability rows closed, and the two
+The contribution is the destination-history and composability rows closed, and the
 residual rows **measured and scoped honestly** rather than papered over or left as
 prose — both point at the same missing piece, the external crowd §5.1 defines the
 interface for.

@@ -138,6 +138,14 @@ second, smaller residual has the same fix: **9.4% of real payees hold an SPL tok
 account a SOL-only warming scheme never will**, +0.05–0.09 (`CHANNELS.md §5.2`). Both
 residuals point at the same missing piece — see [CHANNELS.md §5](CHANNELS.md).
 
+Nor does it hide **that a signer used this tool at all** — a different question than which
+leg is real. The program lives at one fixed address, so `getSignaturesForAddress` on the
+*program itself* enumerates every signer who ever cast a bundle through it, with zero
+access to any bundle's contents. Measured live, not modeled: `cargo run -p supersonic-cli
+--bin program-identity` recovered 1 signer from 1 real devnet transaction. Closing this
+needs a fresh program per use, which costs the composability this repo demonstrates — see
+[CHANNELS.md §7](CHANNELS.md).
+
 **Deployed on devnet** — [program `D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be`](https://explorer.solana.com/address/D1yahocVjdQFeidzSwsEeWBYF3ePvjpmjPJjKHHaY9be?cluster=devnet),
 with a real CLI-planned bundle settled on chain ([tx](https://explorer.solana.com/tx/5zd9D1V51Grjjm9tB38jimgdAHwAb3n5s4gqgwYUQgx5FMoygJpKKkEhVciZCNGS56NVxZJKNDsq65ADw8GtojjR?cluster=devnet), status Ok). See [PROOF.md §4.1](PROOF.md).
 

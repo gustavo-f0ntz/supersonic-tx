@@ -352,3 +352,30 @@ Even at K=16, the bundle uses **2.6% of the compute budget**; the account-lock c
 (`DESIGN.md §7`, `MAX_TX_ACCOUNT_LOCKS = 64` → real K_max ≈ 2 with a Jupiter swap sharing
 the tx) binds long before compute does for a transfer-only bundle. `cu_scales_safely_with_k`
 pins both the ceiling and the roughly-linear growth in CI.
+
+## 8. Program identity — measured live, not modeled
+
+Every channel above answers "which leg is real"; this measures a different question —
+"did this signer ever use supersonic-tx at all". The deployed program's address is fixed,
+so `getSignaturesForAddress` on the *program* enumerates every signer who ever cast a
+bundle through it, with zero access to any bundle's contents (`CHANNELS.md §7`).
+
+```
+$ cargo run -p supersonic-cli --bin program-identity -- --rpc https://api.devnet.solana.com
+```
+
+Run cold, this returned 0 signatures — `api.devnet.solana.com`'s public indexer does not
+retain history indefinitely (the shallow-index limitation already documented in §6, here
+on devnet). Rather than leave that as an unverified claim, we cast one fresh bundle and
+re-ran the query live:
+
+- Fresh bundle: `cargo run -p composability-demo -- --to <pubkey> --amount 1000000 --k 4 --keypair ~/.config/solana/id.json --rpc https://api.devnet.solana.com --broadcast`
+  → tx [`2iwXTRSUuQzLYK2VuMjn7itEftX62HgyGVRbYLppS8GEaULLPPZnRhsqEjKkAb36YnBUqjp3Cdx8KdQFJqC5GDsH`](https://explorer.solana.com/tx/2iwXTRSUuQzLYK2VuMjn7itEftX62HgyGVRbYLppS8GEaULLPPZnRhsqEjKkAb36YnBUqjp3Cdx8KdQFJqC5GDsH?cluster=devnet)
+- Re-running `program-identity` immediately after: **1 confirmed signature, 1 distinct
+  signer** (`DumKvuUFpqXXh8CXU1HG7PDhADsfNwNXxKfSEBRzyAJL`) — recovered with no knowledge
+  of which of the bundle's 4 legs was real.
+
+Not closed, and named as such (`CHANNELS.md §7`): closing it needs a fresh program per
+use, which costs the composability `COMPOSABILITY.md` demonstrates, and a real,
+non-trivial rent cost per instance — **1.27 SOL** for a program this size
+(`solana rent 182408`, this deployment's actual `.so` byte count).
