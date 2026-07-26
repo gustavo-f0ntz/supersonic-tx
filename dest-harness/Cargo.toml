@@ -25,3 +25,91 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
+
+[dev-dependencies]
+# solana-sdk 2.2 / solana-client — same generation `cli`/`e2e` already use, for the
+# `#[ignore]`d live-devnet Pinocchio send in tests/pinocchio_devnet.rs. Coexists fine
+# with the pinned 4.x/3.x generation below: different majors, no unification needed,
+# same dual-generation pattern already proven out for the rest of this crate's Mollusk deps.
+solana-sdk = { workspace = true }
+solana-client = { workspace = true }
+# Mollusk pulls a newer generation of solana-pubkey/instruction/account/sdk-ids than
+# solana-sdk 2.2 does — kept here (not in e2e) because e2e also depends on litesvm 0.6,
+# whose own transitive graph (solana-fee-calculator -> wincode 0.5.5) collides with
+# mollusk's solana-account-info -> solana-address -> wincode 0.6.0 chain when both land
+# in one crate's unified dependency graph (confirmed by trying it: derive-macro trait
+# mismatch on Pubkey/SchemaWrite). dest-harness has neither anchor nor litesvm, so it's
+# the clean, conflict-free home — mirrors Jmkoygg/supersonic-tx's own harness crate,
+# which keeps its Mollusk tests separate from anything anchor/litesvm-adjacent for the
+# same reason.
+mollusk-svm = "0.14"
+mollusk-svm-bencher = "0.14"
+# Everything below is an exact pin to the newer-generation solana-* crate versions
+# Jmkoygg/supersonic-tx's own committed Cargo.lock resolved to for the identical
+# mollusk-svm 0.14 dependency (verified: his harness/Cargo.toml declares the same
+# 4 top-level pins we started with). Several of these crates have published newer
+# patches SINCE his lock was generated that migrate to wincode 0.6.0 while sibling
+# crates in the same graph (e.g. solana-fee-calculator) are still on wincode 0.5.5 —
+# an in-progress ecosystem migration, not a mistake on our part — which fails to
+# compile with a `SchemaWrite`/`SchemaRead` trait mismatch if cargo picks the newer
+# patch for only some of them. Pinning the whole dual-generation set to his exact,
+# already-proven-compatible versions sidesteps the mid-migration window entirely.
+# Unused directly in most cases — these exist purely to constrain the resolver.
+solana-pubkey = "=4.2.0"
+solana-instruction = "=3.4.0"
+solana-account = "=4.3.1"
+solana-sdk-ids = "=3.1.0"
+solana-address = "=2.6.1"
+solana-account-info = "=3.1.1"
+solana-atomic-u64 = "=3.0.1"
+solana-big-mod-exp = "=3.0.0"
+solana-bincode = "=3.1.0"
+solana-blake3-hasher = "=3.1.0"
+solana-bn254 = "=3.2.1"
+solana-bpf-loader-program = "=4.1.2"
+solana-clock = "=3.1.1"
+solana-compute-budget = "=4.1.2"
+solana-cpi = "=3.1.0"
+solana-curve25519 = "=4.0.1"
+solana-define-syscall = "=5.1.0"
+solana-epoch-rewards = "=3.1.0"
+solana-epoch-schedule = "=3.2.0"
+solana-fee-calculator = "=3.2.2"
+solana-fee-structure = "=3.0.0"
+solana-hash = "=4.5.0"
+solana-instructions-sysvar = "=3.0.1"
+solana-keccak-hasher = "=3.1.0"
+solana-last-restart-slot = "=3.1.0"
+solana-loader-v3-interface = "=7.0.0"
+solana-logger = "=3.0.0"
+solana-message = "=4.3.0"
+solana-msg = "=3.1.0"
+solana-nonce = "=3.2.0"
+solana-nonce-account = "=4.1.1"
+solana-packet = "=4.2.0"
+solana-poseidon = "=4.0.0"
+solana-precompile-error = "=3.0.0"
+solana-program-entrypoint = "=3.1.1"
+solana-program-error = "=3.0.1"
+solana-program-memory = "=3.1.0"
+solana-program-runtime = "=4.1.2"
+solana-rent = "=4.3.0"
+solana-sanitize = "=3.0.1"
+solana-sbpf = "=0.21.0"
+solana-sdk-macro = "=3.0.1"
+solana-secp256k1-recover = "=3.2.0"
+solana-serialize-utils = "=3.1.2"
+solana-sha256-hasher = "=3.1.0"
+solana-signature = "=3.4.1"
+solana-slot-hashes = "=3.1.0"
+solana-slot-history = "=3.1.0"
+solana-stable-layout = "=3.0.1"
+solana-stake-interface = "=3.1.0"
+solana-svm-transaction = "=4.1.2"
+solana-system-interface = "=3.2.0"
+solana-system-program = "=4.1.2"
+solana-sysvar = "=4.1.0"
+solana-sysvar-id = "=3.1.0"
+solana-transaction = "=4.1.5"
+solana-transaction-context = "=4.1.2"
+solana-transaction-error = "=3.3.1"

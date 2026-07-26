@@ -95,6 +95,51 @@ refresh`: read-only, re-queries `getSignaturesForAddress` per member and overwri
 `current` with what's actually observed (`cli/src/refresh.rs`), so the fail-closed
 guarantee is checked against the chain, not a self-reported flag. See `CHANNELS.md §3.2`.
 
+## Pinocchio benchmark crate (`bench/pinocchio-router`)
+
+A second pass, specific to known-vector **109 — "Pinocchio / p-token: Missing Manual
+Validation in Zero-Copy Native Programs"** (`known-vectors/109-...`), the vector that
+targets exactly this situation: a native/Pinocchio program where every guarantee Anchor
+gives for free (owner, discriminator, signer, mut, bounds) becomes a manual check.
+Applied step by step against `bench/pinocchio-router/src/lib.rs`:
+
+- **Step 2 (owner checks):** N/A by construction — this program never deserializes or
+  trusts *any* account's data. It only moves lamports via `Transfer::invoke()`; no
+  account is read as a typed struct, so there's nothing for an owner check to guard.
+- **Step 3 (signer/writable):** ✅ `payer.is_signer()` and `payer.is_writable()` checked
+  before any transfer; every destination's `is_writable()` checked per leg.
+- **Step 4 (bounds before reads):** ✅ `data.is_empty()`, then the exact expected length
+  (`1 + count * 8`) is checked before any indexing; every leg's 8-byte amount slice is
+  read only inside that validated range. No `unsafe`, no `get_unchecked`, no raw pointer
+  arithmetic anywhere in the crate.
+- **Step 5 (discriminator/type confusion):** N/A — no account-type ambiguity exists to
+  confuse; every account passed is used identically (a lamport-holding address), matching
+  the Anchor program's own "destinations are intentionally untyped" posture.
+- **Step 5b (zero-copy/`wincode` UB):** N/A — no `bytemuck`/`wincode`/`#[repr(C)]`
+  zero-copy casting anywhere; amounts are parsed byte-by-byte via `copy_from_slice` +
+  `from_le_bytes`, not cast in place.
+- **Step 6 (unsafe resize):** N/A — no account resizing/realloc.
+- **Step 7 (token-semantic parity):** N/A — not reimplementing token logic.
+- **Step 7b (batch/deferred validation):** N/A — no manual reversal logic; atomicity is
+  the runtime's transaction-level guarantee, not custom code in this program.
+
+**One claim verified independently rather than trusted from the reference benchmark this
+follows:** the module doc states the CPI's target program ID can't be spoofed by the
+caller. Confirmed by reading `pinocchio-system-0.6.1`'s own source
+(`instructions/transfer.rs`): `Transfer::invoke()` hardcodes `program_id: &crate::ID`
+(the real System Program ID) — it is never read from the accounts the caller supplies,
+so there's no account-substitution vector here regardless of what's passed in the
+trailing "system program" slot.
+
+**Verdict: clean, no findings.** `cargo audit` against this crate's own (separate,
+25-package) `Cargo.lock` also reports zero advisories.
+
+**One real finding from this pass, already fixed — not a security bug, a footgun in the
+opposite direction:** clippy's own `manual_range_contains` suggestion for the bundle-size
+check nearly doubles this binary (5,672 → 10,736 bytes) under this no_std/BPF/LTO build.
+Kept the original two-comparison form with a targeted `#[allow(...)]` and a comment
+citing the measurement — see `BENCHMARK.md` Result 1.
+
 ## What this pass did not re-litigate
 
 The funding-graph residual (86.5% third-party-funded among durable payees, +0.27…+0.51)

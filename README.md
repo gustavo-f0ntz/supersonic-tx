@@ -61,6 +61,7 @@ role, amounts and destinations each drawn from one indistinguishable distributio
 3. **[CHANNELS.md](CHANNELS.md)** — channel-by-channel status, closed and open, and the crowd interface the open residual needs.
 4. **[COMPOSABILITY.md](COMPOSABILITY.md)** — an independent binary casting through the deployed router using only the published SDK, settled on real devnet.
 5. **[AUDIT.md](AUDIT.md)** — a self-run pass against `solanabr/auditor-skill`, the bounty org's own audit framework: one real high-severity finding (decoy-set reuse from a constant `--bundle-id` default) found and fixed, plus a KDF-zeroization hardening.
+6. **[BENCHMARK.md](BENCHMARK.md)** — Anchor vs. a from-scratch Pinocchio reimplementation of the router core: ~32× smaller/cheaper to deploy, ~48–56% less compute, same invariants proven via Mollusk, deployed and settled live on devnet too.
 
 ## Layout
 
@@ -71,20 +72,25 @@ supersonic-sdk           bundle planner: amount layer (exchangeable, credited to
 cli  (supersonic)        warm / plan / inspect / recover (offline) + send (simulates
                          by default; --broadcast to submit to an RPC)
 dest-harness             destination-channel adversary + advantage measurement
+                         (also: Pinocchio invariant/CU tests, via Mollusk — see BENCHMARK.md)
 e2e                      SDK-planned bundle settles on the real program in LiteSVM
 composability-demo       independent binary, SDK-only dependency, real devnet proof
+bench/pinocchio-router   from-scratch Pinocchio reimplementation of the router core,
+                         for the size/CU benchmark (not deployed, detached workspace)
 ```
 
 ## Quickstart
 
 ```bash
-# 1. build the program artifact the e2e tests load by path (needs the Solana toolchain)
+# 1. build the program artifacts the e2e/dest-harness tests load by path
+#    (needs the Solana toolchain)
 cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
+cargo build-sbf --manifest-path bench/pinocchio-router/Cargo.toml
 
-# 2. everything, one command — 76 tests across all six crates
+# 2. everything, one command — 85 tests across all six workspace crates
 cargo test --workspace
-#   (step 1 is required first: the 8 e2e tests load the .so and fail loudly,
-#    with a "run cargo build-sbf" message, if it isn't built)
+#   (step 1 is required first: the e2e and dest-harness Pinocchio tests load the
+#    .so files and fail loudly, with a "run cargo build-sbf" message, if either isn't built)
 
 # reproduce the headline measurement (real mainnet data, in-repo)
 cd dest-harness

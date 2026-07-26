@@ -1,5 +1,8 @@
 # Rust build artifacts
 /target
+# bench/pinocchio-router is a detached workspace (its own [workspace] table), so its
+# target dir isn't covered by the root-anchored rule above.
+bench/pinocchio-router/target
 
 # Keypairs — private keys never go in git. The program keypair stays on disk
 # (deploy must reuse it so the deployed id matches declare_id!), just not tracked.

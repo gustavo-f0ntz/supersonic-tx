@@ -23,6 +23,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
+            bench/pinocchio-router/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Format check
@@ -40,5 +41,16 @@ jobs:
       - name: Build the program .so
         run: cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
 
-      - name: Test (all six crates, incl. the LiteSVM e2e that loads the .so)
+      # bench/pinocchio-router is a detached workspace (no_std, BPF-only — see its own
+      # Cargo.toml), so it's outside `cargo fmt/clippy --workspace` above and needs its
+      # own checks + build.
+      - name: Format + clippy the Pinocchio benchmark crate
+        run: |
+          cargo fmt --manifest-path bench/pinocchio-router/Cargo.toml --all -- --check
+          cargo clippy --manifest-path bench/pinocchio-router/Cargo.toml --all-targets -- -D warnings
+
+      - name: Build the Pinocchio benchmark program .so
+        run: cargo build-sbf --manifest-path bench/pinocchio-router/Cargo.toml
+
+      - name: Test (all crates, incl. the LiteSVM/Mollusk e2e that load the .so files)
         run: cargo test --workspace

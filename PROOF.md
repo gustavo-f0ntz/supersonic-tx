@@ -231,20 +231,30 @@ every leg settled, real and decoy alike, in one atomic tx. The live deployment a
 enforces the invariants: a `send` with the real destination set to the signer was rejected
 on chain with `SelfDestination` (Error 6004) before anything moved.
 
+The Pinocchio reimplementation (`BENCHMARK.md`) got the same live-devnet treatment, not
+just Mollusk: deployed under its own id and a real K=4 bundle settled there too —
+`BENCHMARK.md` Result 4.
+
 ## 5. The whole thing, one command
 
 ```
-$ cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml   # e2e loads this .so
+$ cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml         # e2e loads this .so
+$ cargo build-sbf --manifest-path bench/pinocchio-router/Cargo.toml         # dest-harness's Pinocchio tests load this .so
 $ cargo test --workspace
-    ... 71 passed; 0 failed
+    ... 85 passed; 0 failed
 ```
 
-Six crates: `programs/supersonic-tx` (router), `supersonic-sdk` (amount + destination
-layers), `supersonic-cli` (CLI), `dest-harness` (measurement), `e2e` (on-chain proof),
-`composability-demo` (independent caller, `COMPOSABILITY.md`). The 71 cover the amount layer's exchangeability, the destination pool's fail-closed
-selection, the multi-seed robustness of the published closure (§2.2), **every program
-invariant** (`e2e/tests/program_invariants.rs` — each `SupersonicError` and
-later-leg-revert atomicity), the SDK→program seam, and the CLI's input parsing.
+Six workspace crates: `programs/supersonic-tx` (router), `supersonic-sdk` (amount +
+destination layers), `supersonic-cli` (CLI), `dest-harness` (measurement, plus the
+Pinocchio invariant/CU tests — `BENCHMARK.md`), `e2e` (on-chain proof), `composability-demo`
+(independent caller, `COMPOSABILITY.md`). Plus a 7th, detached crate outside the
+workspace (`bench/pinocchio-router`, no_std/BPF-only, built separately). The 85 cover the
+amount layer's exchangeability, the destination pool's fail-closed selection, the
+multi-seed robustness of the published closure (§2.2), **every program invariant** against
+both the Anchor program (`e2e/tests/program_invariants.rs` — each `SupersonicError` and
+later-leg-revert atomicity) and the Pinocchio reimplementation
+(`dest-harness/tests/pinocchio_invariants.rs`, via Mollusk), the SDK→program seam, the CLI's
+input parsing, and the Anchor-vs-Pinocchio CU curve.
 
 ## 6. The residual it does NOT close — the funding graph, measured
 
@@ -352,6 +362,11 @@ Even at K=16, the bundle uses **2.6% of the compute budget**; the account-lock c
 (`DESIGN.md §7`, `MAX_TX_ACCOUNT_LOCKS = 64` → real K_max ≈ 2 with a Jupiter swap sharing
 the tx) binds long before compute does for a transfer-only bundle. `cu_scales_safely_with_k`
 pins both the ceiling and the roughly-linear growth in CI.
+
+**A from-scratch Pinocchio reimplementation of the router core cuts this further** —
+~32× smaller binary (32× cheaper to deploy) and ~48–56% less compute across the same K
+range, proven against the identical invariants via Mollusk. Not deployed, offered as a
+minimal-attack-surface option: see `BENCHMARK.md`.
 
 ## 8. Program identity — measured live, not modeled
 
