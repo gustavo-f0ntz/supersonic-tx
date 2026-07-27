@@ -160,6 +160,76 @@ activity through decoy addresses (README's composability section) would supply a
 side effect, not something this SOL-only scheme can synthesize alone. §5.1's crowd
 interface is the same interface this channel needs, not a second one.
 
+### 5.3 A third residual: cross-bundle identity reuse
+
+Every number above is a **single-bundle** measurement: given one confirmed bundle, can
+an observer spot the real leg? PR #1's own `92ee379`→`a8f7b2f` commits found a sharper
+question for their per-slot sub-funder mitigation — a fix that drives a *single* bundle's
+residual to ~0 can still fail once an observer has watched *many* bundles from the same
+signer, because a mitigation built on a small, reused, finite set of identities eventually
+lets those identities be told apart from a genuinely one-time real payee just by which ones
+recur. They measured this for their funding-graph fix and reported it straight: the
+sub-funder mitigation's advantage climbs back to the pre-mitigation ceiling
+(+0.75/+0.875/+0.9375 at K=4/8/16) by bundle 25-50 of normal pool reuse.
+
+The same question applies to `WarmingPool` itself, independent of funding entirely: a
+decoy's identity *is* its pool member index, and `select` draws from a fixed pool (32
+members by the CLI's `warm --count` default). An observer who has watched N bundles from
+one signer can tally how many times each destination address has appeared before —
+directly, on-chain, no funding trace needed — and guess "least-seen-so-far = real" on
+bundle N+1. Measured (`dest-harness/src/cross_bundle.rs`, real `WarmingPool::select` path,
+n=1181 mainnet study, 300-trial means):
+
+```
+$ cargo run -p supersonic-dest-harness --release --bin cross-bundle-residual -- \
+      --study data/dest_study.jsonl --pool-size 32 --k 8,16
+
+  bundles observed |  advantage, K=8  |  advantage, K=16
+  ------------------+------------------+------------------
+                  5 |      +0.098      |      +0.207
+                 10 |      +0.259      |      +0.511
+                 25 |      +0.576      |      +0.765
+                 50 |      +0.725      |      +0.851
+                100 |      +0.800      |      +0.894
+```
+
+By bundle 25, this alone exceeds the open destination-history channel's own ceiling
+(+0.60 at K=16) — a defended pool that looks closed in isolation degrades to worse than
+undefended within the first few dozen uses if the pool never grows.
+
+**Verified this is not implementation-specific.** Jmkoygg's own `WarmPool` decoy mode
+(`sdk/src/warming.rs::select_pool_slots` + `derive_pool_member_keypair`) uses the same
+CLI default (pool size 32, K=8) and the identical construction — a bundle-seeded random
+subset of a fixed pool. Running the same attacker directly against his real functions
+(not a reimplementation) produces an essentially identical curve (+0.093/+0.262/+0.579/
++0.727 at bundles 5/10/25/50) — confirming this is a shared property of *any* finite,
+self-warmed, reused decoy pool, independent of which side built it.
+
+**A fix was tried, measured, and reverted before shipping — the honesty this document
+exists for.** The natural idea — bias `select` toward whichever members have been drawn
+least so far ("least-used-first", spreading usage evenly instead of leaving it to chance)
+— was implemented and benchmarked. It made every checkpoint past bundle ~5 *worse*, not
+better: the attacker's signal here is binary (has this address ever been seen before, yes
+or no), not frequency-graded, and least-used-first saturates the *entire* pool (every
+member drawn at least once) far faster and more evenly than a uniform independent draw
+does. Reaching "every decoy has been seen at least once, while the real leg — a genuinely
+one-time identity — never has" sooner is strictly worse for the defender. This is the same
+methodological discipline as the depth-sweep forest finding (`PROOF.md §2.3`) and Gap A/B
+(`DESIGN.md` devlog): measure before shipping a fix, and report the number even when it
+contradicts the intuition that motivated the attempt.
+
+**Why this is structural, not a bug to patch.** The root cause is the same one §5/§5.1
+name for the funding-graph residual: a self-warmed pool is finite, and any finite set of
+reused identities is eventually distinguishable from a population of genuinely one-time
+real payees, independent of the order they're drawn in. Closing it needs the same fix
+already specified — an externally-supplied, effectively unbounded decoy source (§5.1's
+crowd interface) — not a cleverer `select`. Until then, the practical mitigation is
+operational, not algorithmic: keep the pool large relative to expected bundle volume (this
+measurement's own numbers are the sizing guide — a K=8 user planning to send >10 bundles
+before rotating pools needs meaningfully more than 32 members) and rotate in freshly-warmed
+members before the old ones saturate. Stated open, like §5 and §5.2 — not closed by this
+submission.
+
 ## 6. Pre-inclusion (mempool) vs. post-hoc analysis
 
 Worth stating plainly, because the two threats are usually named together and on Solana
@@ -249,6 +319,7 @@ submission's remaining time.
 | Bundle atomic & non-custodial | Yes — program invariants, e2e-proven |
 | Funding-graph provenance closed | **No — measured +0.27…+0.51 for durable P2P payees; requires an external crowd** |
 | Token-holdings channel closed | **No — measured +0.05…+0.09; requires the same crowd interface (§5.2)** |
+| Cross-bundle identity reuse closed | **No — single-bundle closure holds, but a finite pool accumulates a frequency signal over many bundles (+0.58…+0.90 by bundle 25-100, K=8/16); a "spread usage evenly" fix was tried, measured worse, and reverted (§5.3); requires the same crowd interface** |
 | Same-tx correlation hidden | No — out of scope by construction |
 | Composability (external caller) | Yes — a separate binary depending only on the published SDK, real devnet tx (`COMPOSABILITY.md`) |
 | Program-identity leak closed | **No — measured live (1 signer recovered from 1 real tx, zero access to bundle contents); a fresh-program-per-use design would close it but breaks composability (§7)** |

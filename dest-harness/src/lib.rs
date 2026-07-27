@@ -29,6 +29,7 @@
 //! entire attack.
 
 pub mod classifiers;
+pub mod cross_bundle;
 pub mod eval;
 pub mod forest;
 pub mod funding;

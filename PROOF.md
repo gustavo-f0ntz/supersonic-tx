@@ -338,6 +338,56 @@ interface, not a second one). Smaller than the funding residual (+0.05…+0.09 v
 +0.27…+0.51) but real, and found the same way every number in this file was: measured,
 not assumed.
 
+### 6.2 A third residual: cross-bundle identity reuse
+
+Every number in §2 is a single-bundle measurement. PR #1's `92ee379`→`a8f7b2f` commits
+found a sharper question for their own per-slot sub-funder fix: a mitigation that closes
+one bundle's residual to ~0 can still fail once an observer has watched many bundles from
+the same signer, because a fix built on a small, reused, finite identity set eventually
+becomes distinguishable from a genuinely one-time real payee just by which identities
+recur — their sub-funder mitigation's advantage climbs back to +0.75/+0.875/+0.9375
+(K=4/8/16) by bundle 25-50. The same question, asked of `WarmingPool` directly:
+
+```
+$ cargo run -p supersonic-dest-harness --release --bin cross-bundle-residual -- \
+      --study data/dest_study.jsonl --pool-size 32 --k 8,16
+
+  bundles observed |  advantage, K=8  |  advantage, K=16
+  ------------------+------------------+------------------
+                  5 |      +0.098      |      +0.207
+                 10 |      +0.259      |      +0.511
+                 25 |      +0.576      |      +0.765
+                 50 |      +0.725      |      +0.851
+                100 |      +0.800      |      +0.894
+```
+
+Method (`dest-harness/src/cross_bundle.rs`): decoys drawn through the real
+`WarmingPool::select` path, real legs a never-repeating identity every bundle (a
+real-world payee population is not observed to reuse addresses the way a fixed decoy
+pool must), attacker an online frequency counter predicting "least-seen-so-far = real."
+By bundle 25 this alone exceeds the open destination-history channel's own ceiling
+(+0.60 at K=16, §2).
+
+**Verified against Jmkoygg's real code, not a reimplementation.** His `WarmPool` decoy
+mode (`sdk/src/warming.rs::select_pool_slots` + `derive_pool_member_keypair`) uses the
+same CLI default (pool size 32, K=8) and the identical construction. Running the same
+attacker directly against his functions produces an essentially identical curve
+(+0.093/+0.262/+0.579/+0.727 at bundles 5/10/25/50) — this is a shared property of any
+finite, self-warmed, reused decoy pool, not an implementation gap on either side.
+
+**A fix was tried and measured worse, not better, before anything shipped.** The natural
+idea — bias selection toward whichever members have been drawn least so far, spreading
+usage evenly — was implemented and benchmarked. It made every checkpoint past bundle ~5
+*worse*: the attacker's signal is binary (ever seen before, yes or no), not
+frequency-graded, and spreading usage evenly saturates the *whole* pool (every member
+seen at least once) faster than a uniform independent draw does — exactly the wrong
+direction. Same discipline as §2.3's forest depth-sweep: measured before shipping,
+reported even though it contradicted the intuition that motivated it (`CHANNELS.md
+§5.3`). The residual is structural — a finite, self-warmed pool is eventually
+distinguishable from a one-time-payee population regardless of draw order — and needs
+the same fix already named for §6/§6.1: an externally-supplied, effectively unbounded
+decoy source. Stated open, not closed by this submission.
+
 ## 7. Compute cost — real CU-vs-K curve, against the deployed program
 
 More decoys means a cheaper anonymity set per §2, but also a bigger transaction. Measured

@@ -87,7 +87,7 @@ bench/pinocchio-router   from-scratch Pinocchio reimplementation of the router c
 cargo build-sbf --manifest-path programs/supersonic-tx/Cargo.toml
 cargo build-sbf --manifest-path bench/pinocchio-router/Cargo.toml
 
-# 2. everything, one command — 85 tests across all six workspace crates
+# 2. everything, one command — 88 tests across all six workspace crates
 cargo test --workspace
 #   (step 1 is required first: the e2e and dest-harness Pinocchio tests load the
 #    .so files and fail loudly, with a "run cargo build-sbf" message, if either isn't built)

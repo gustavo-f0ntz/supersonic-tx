@@ -17,6 +17,10 @@ path = "src/bin/funding_residual.rs"
 name = "token-residual"
 path = "src/bin/token_residual.rs"
 
+[[bin]]
+name = "cross-bundle-residual"
+path = "src/bin/cross_bundle_residual.rs"
+
 [dependencies]
 supersonic-sdk = { path = "../supersonic-sdk" }
 anyhow = { workspace = true }
